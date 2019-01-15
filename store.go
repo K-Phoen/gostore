@@ -1,4 +1,4 @@
-package main
+package gostore
 
 import (
 	"fmt"
@@ -35,8 +35,8 @@ func (store *Store) Get(key string) (string, error) {
 	return "", errors.New(fmt.Sprintf("No data for key %q", key))
 }
 
-func NewStore() Store {
-	return Store{
+func NewStore() *Store {
+	return &Store{
 		data: make(map[string]string),
 	}
 }

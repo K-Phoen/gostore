@@ -1,1 +1,2 @@
-/gostore
+/cmd/store/store
+/cmd/client/client

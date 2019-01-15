@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/K-Phoen/gostore"
 )
 
 func main() {
@@ -13,5 +14,5 @@ func main() {
 
 	flag.Parse()
 
-	NewServer().Start(host, port)
+	gostore.NewServer().Start(host, port)
 }

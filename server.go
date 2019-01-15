@@ -1,4 +1,4 @@
-package main
+package gostore
 
 import (
 	"bufio"
@@ -14,7 +14,7 @@ import (
 
 type Server struct {
 	logger *log.Logger
-	store Store
+	store  *Store
 }
 
 func extractUntil(input string, delimiter string) (string, string, error) {
@@ -67,7 +67,7 @@ func (server Server) handleConnection(conn net.Conn) {
 		return
 	}
 
-	res, err := cmd.execute(&server.store)
+	res, err := cmd.execute(server.store)
 	if err != nil {
 		server.logger.Printf("Error while executing command: %s", err)
 		return
@@ -99,7 +99,7 @@ func (server Server) Start(host string, port int) {
 
 func NewServer() Server {
 	return Server{
-		logger: log.New(os.Stdout, "gostore ", log.Flags() | log.Lshortfile),
+		logger: log.New(os.Stdout, "gostore ", log.Flags()|log.Lshortfile),
 		store:  NewStore(),
 	}
 }

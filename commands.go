@@ -1,4 +1,4 @@
-package main
+package gostore
 
 import (
 	"fmt"
@@ -13,14 +13,14 @@ type Result interface {
 	String() string
 }
 
-type VoidResult struct {}
+type VoidResult struct{}
 
 type PayloadResult struct {
 	data string
 }
 
 type StoreCmd struct {
-	key string
+	key   string
 	value string
 }
 
@@ -32,11 +32,11 @@ type DelCmd struct {
 	key string
 }
 
-func (r VoidResult) String() string{
+func (r VoidResult) String() string {
 	return "OK"
 }
 
-func (r PayloadResult) String() string{
+func (r PayloadResult) String() string {
 	return fmt.Sprintf("%d\n%s", len(r.data), r.data)
 }
 
@@ -47,7 +47,7 @@ func NewStoreCmd(arguments string) (*StoreCmd, error) {
 	}
 
 	return &StoreCmd{
-		key: key,
+		key:   key,
 		value: rest,
 	}, nil
 }
