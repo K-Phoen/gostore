@@ -1,9 +1,7 @@
 package gostore
 
 import (
-	"bufio"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"log"
 	"net"
@@ -17,51 +15,12 @@ type Server struct {
 	store  *Store
 }
 
-func extractUntil(input string, delimiter string) (string, string, error) {
-	delimiterPos := strings.Index(input, delimiter)
-	if delimiterPos == -1 {
-		return "", "", errors.New(fmt.Sprintf("Could not extract until delimiter %q from input %q", delimiter, input))
-	}
-
-	// FIXME what if delimiterPos+1 doesn't exist?
-	return input[:delimiterPos], input[delimiterPos+1:], nil
-}
-
-func (server Server) parseCommand(conn net.Conn) (Command, error) {
-	reader := bufio.NewReader(conn)
-
-	line, err := reader.ReadBytes('\n')
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not parse command")
-	}
-
-	// remove the trailing \n
-	line = line[:len(line)-1]
-
-	// the action is the first word
-	action, arguments, err := extractUntil(string(line), " ")
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not parse action")
-	}
-
-	switch action {
-	case "store":
-		return NewStoreCmd(arguments)
-	case "fetch":
-		return NewFetchCmd(arguments)
-	case "del":
-		return NewDelCmd(arguments)
-	default:
-		return nil, errors.New(fmt.Sprintf("Unknown action %q", action))
-	}
-}
-
 func (server Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	conn.SetDeadline(time.Now().Add(5 * time.Second))
 
-	cmd, err := server.parseCommand(conn)
+	cmd, err := parseCommand(conn)
 	if err != nil {
 		server.logger.Printf("Invalid command received: %s", err)
 		return
