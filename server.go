@@ -23,12 +23,14 @@ func (server Server) handleConnection(conn net.Conn) {
 	cmd, err := parseCommand(conn)
 	if err != nil {
 		server.logger.Printf("Invalid command received: %s", err)
+		io.Copy(conn, strings.NewReader(fmt.Sprintf("ERR\n%s", err)))
 		return
 	}
 
 	res, err := cmd.execute(server.store)
 	if err != nil {
 		server.logger.Printf("Error while executing command: %s", err)
+		io.Copy(conn, strings.NewReader(fmt.Sprintf("ERR\n%s", err)))
 		return
 	}
 
