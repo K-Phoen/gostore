@@ -5,20 +5,41 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"strings"
 	"time"
 )
 
+type Config struct {
+	Host string
+	Port int
+
+	ReadTimeout time.Duration
+	WriteTimeout time.Duration
+}
+
 type Server struct {
+	config Config
+
 	logger *log.Logger
 	store  *Store
+	cluster *Cluster
+}
+
+func DefaultConfig() Config {
+	return Config{
+		Host: "0.0.0.0",
+		Port: 4224,
+
+		ReadTimeout: 5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+	}
 }
 
 func (server Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	conn.SetReadDeadline(time.Now().Add(server.config.ReadTimeout))
+	conn.SetWriteDeadline(time.Now().Add(server.config.WriteTimeout))
 
 	cmd, err := parseCommand(conn)
 	if err != nil {
@@ -27,7 +48,7 @@ func (server Server) handleConnection(conn net.Conn) {
 		return
 	}
 
-	res, err := cmd.execute(server.store)
+	res, err := cmd.execute(&server)
 	if err != nil {
 		server.logger.Printf("Error while executing command: %s", err)
 		io.Copy(conn, strings.NewReader(fmt.Sprintf("ERR\n%s", err)))
@@ -40,13 +61,20 @@ func (server Server) handleConnection(conn net.Conn) {
 	}
 }
 
-func (server Server) Start(host string, port int) {
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+func (server Server) JoinCluster(member string) {
+	err := server.cluster.Join(member)
 	if err != nil {
-		server.logger.Fatalf("Could not listen to %s:%d. %s", host, port, err)
+		server.logger.Fatalf("Failed to join cluster: %s", err)
+	}
+}
+
+func (server Server) Start() {
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", server.config.Host, server.config.Port))
+	if err != nil {
+		server.logger.Fatalf("Could not listen to %s:%d. %s", server.config.Host, server.config.Port, err)
 	}
 
-	server.logger.Printf("Listening to %s:%d", host, port)
+	server.logger.Printf("Listening to %s:%d", server.config.Host, server.config.Port)
 
 	for {
 		conn, err := listener.Accept()
@@ -58,9 +86,11 @@ func (server Server) Start(host string, port int) {
 	}
 }
 
-func NewServer() Server {
+func NewServer(logger *log.Logger, config Config) Server {
 	return Server{
-		logger: log.New(os.Stdout, "gostore ", log.Flags()|log.Lshortfile),
+		logger: logger,
+		config: config,
 		store:  NewStore(),
+		cluster: NewCluster(logger, config.Port+1),
 	}
 }
