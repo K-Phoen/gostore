@@ -23,6 +23,9 @@ type Server struct {
 	logger *log.Logger
 	store  *Store
 	cluster *Cluster
+
+	listener net.Listener
+	stopped bool
 }
 
 func DefaultConfig() Config {
@@ -68,21 +71,36 @@ func (server Server) JoinCluster(member string) {
 	}
 }
 
-func (server Server) Start() {
+func (server *Server) Start() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", server.config.Host, server.config.Port))
 	if err != nil {
 		server.logger.Fatalf("Could not listen to %s:%d. %s", server.config.Host, server.config.Port, err)
 	}
 
+	server.listener = listener
 	server.logger.Printf("Listening to %s:%d", server.config.Host, server.config.Port)
 
 	for {
+		if server.stopped {
+			break
+		}
+
 		conn, err := listener.Accept()
 		if err != nil {
 			server.logger.Printf("Could not accept connection: %s", err)
+			continue
 		}
 
 		go server.handleConnection(conn)
+	}
+}
+
+func (server *Server) Stop() {
+	server.stopped = true
+
+	err := server.listener.Close()
+	if err != nil {
+		server.logger.Printf("Error while stopping server: %s", err)
 	}
 }
 
