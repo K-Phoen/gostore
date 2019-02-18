@@ -7,26 +7,33 @@ import (
 )
 
 type Store struct {
-	sync.RWMutex
+	mutex sync.RWMutex
 
 	data map[string]string
 }
 
+func (store *Store) Len() int {
+	store.mutex.RLock()
+	defer store.mutex.RUnlock()
+
+	return len(store.data)
+}
+
 func (store *Store) Set(key string, value string) {
-	store.Lock()
+	store.mutex.Lock()
 	store.data[key] = value
-	store.Unlock()
+	store.mutex.Unlock()
 }
 
 func (store *Store) Delete(key string) {
-	store.Lock()
+	store.mutex.Lock()
 	delete(store.data, key)
-	store.Unlock()
+	store.mutex.Unlock()
 }
 
 func (store *Store) Get(key string) (string, error) {
-	store.RLock()
-	defer store.RUnlock()
+	store.mutex.RLock()
+	defer store.mutex.RUnlock()
 
 	if val, exists := store.data[key]; exists {
 		return val, nil

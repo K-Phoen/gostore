@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"sync"
 )
 
 func sendRequest(host string, port int, request string) {
@@ -15,10 +16,17 @@ func sendRequest(host string, port int, request string) {
 	}
 	defer conn.Close()
 
-	fmt.Fprintf(conn, "%s\n", request)
+	_, err = fmt.Fprintf(conn, "%s\n", request)
+	if err != nil {
+		fmt.Printf("Could not send request\n")
+		return
+	}
+
 	status, err := bufio.NewReader(conn).ReadString('\n')
 
-	fmt.Printf("Status: %s\nErr: %s\n", status, err)
+	if status != "OK" {
+		fmt.Printf("Status: %s\nErr: %s\n", status, err)
+	}
 }
 
 func main() {
@@ -30,14 +38,20 @@ func main() {
 
 	flag.Parse()
 
-	cmd := "store key some-value"
 	count := 1000
+	var wg sync.WaitGroup
 
 	for i := 1; i <= count; i++ {
 		if i%10 == 0 {
 			fmt.Printf("Sending request %d/%d\n", i, count)
 		}
 
-		go sendRequest(host, port, cmd)
+		wg.Add(1)
+		go func(i int) {
+			sendRequest(host, port, fmt.Sprintf("store key-%d some-value", i))
+			wg.Done()
+		}(i)
 	}
+
+	wg.Wait()
 }

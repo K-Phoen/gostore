@@ -10,11 +10,15 @@ import (
 )
 
 type Command interface {
+	fmt.Stringer
+
 	execute(server *Server) (Result, error)
+	distributed() bool
+	hashingKey() string
 }
 
 type Result interface {
-	String() string
+	fmt.Stringer
 }
 
 type VoidResult struct{}
@@ -23,23 +27,46 @@ type PayloadResult struct {
 	data string
 }
 
+type distributedCmd struct {
+}
+
+type localCmd struct {
+}
+
 type StoreCmd struct {
+	distributedCmd
+
 	key   string
 	value string
 }
 
 type FetchCmd struct {
+	distributedCmd
+
 	key string
 }
 
 type DelCmd struct {
+	distributedCmd
+
 	key string
 }
 
+type NodeStatsCmd struct {
+	localCmd
+}
+
 type ClusterListNodesCmd struct {
+	localCmd
+}
+
+type ClusterStatsCmd struct {
+	localCmd
 }
 
 type ClusterJoinCmd struct {
+	localCmd
+
 	address string
 }
 
@@ -49,6 +76,18 @@ func (r VoidResult) String() string {
 
 func (r PayloadResult) String() string {
 	return fmt.Sprintf("%d\n%s", len(r.data), r.data)
+}
+
+func (cmd distributedCmd) distributed() bool {
+	return true
+}
+
+func (cmd localCmd) distributed() bool {
+	return false
+}
+
+func (cmd localCmd) hashingKey() string {
+	return ""
 }
 
 func NewStoreCmd(arguments string) (*StoreCmd, error) {
@@ -73,6 +112,14 @@ func (cmd *StoreCmd) execute(server *Server) (Result, error) {
 	return VoidResult{}, nil
 }
 
+func (cmd StoreCmd) hashingKey() string {
+	return cmd.key
+}
+
+func (cmd StoreCmd) String() string {
+	return fmt.Sprintf("store %s %s", cmd.key, cmd.value)
+}
+
 func NewFetchCmd(arguments string) (*FetchCmd, error) {
 	if len(arguments) == 0 {
 		return nil, errors.New("No key given")
@@ -91,6 +138,14 @@ func (cmd *FetchCmd) execute(server *Server) (Result, error) {
 	}, nil
 }
 
+func (cmd FetchCmd) hashingKey() string {
+	return cmd.key
+}
+
+func (cmd FetchCmd) String() string {
+	return fmt.Sprintf("fetch %s", cmd.key)
+}
+
 func NewDelCmd(arguments string) (*DelCmd, error) {
 	if len(arguments) == 0 {
 		return nil, errors.New("No key given")
@@ -107,6 +162,14 @@ func (cmd *DelCmd) execute(server *Server) (Result, error) {
 	return VoidResult{}, nil
 }
 
+func (cmd DelCmd) hashingKey() string {
+	return cmd.key
+}
+
+func (cmd DelCmd) String() string {
+	return fmt.Sprintf("del %s", cmd.key)
+}
+
 func NewClusterListNodesCmd() (*ClusterListNodesCmd, error) {
 	return &ClusterListNodesCmd{}, nil
 }
@@ -119,6 +182,50 @@ func (cmd *ClusterListNodesCmd) execute(server *Server) (Result, error) {
 	}
 
 	return PayloadResult{data: buffer.String()}, nil
+}
+
+func (cmd ClusterListNodesCmd) String() string {
+	return "cluster nodes"
+}
+
+func NewNodeStatsCmd() (*NodeStatsCmd, error) {
+	return &NodeStatsCmd{}, nil
+}
+
+func (cmd *NodeStatsCmd) execute(server *Server) (Result, error) {
+	return PayloadResult{data: fmt.Sprintf("Keys: %d", server.store.Len())}, nil
+}
+
+func (cmd NodeStatsCmd) String() string {
+	return "node stats"
+}
+
+func NewClusterStatsCmd() (*ClusterStatsCmd, error) {
+	return &ClusterStatsCmd{}, nil
+}
+
+func (cmd *ClusterStatsCmd) execute(server *Server) (Result, error) {
+	var buffer bytes.Buffer
+	nodeCmd := &NodeStatsCmd{}
+
+	buffer.WriteString(fmt.Sprintf("%s\n", server.cluster.LocalNode().Address()))
+	buffer.WriteString(fmt.Sprintf("Keys: %d\n", server.store.Len()))
+
+	for _, member := range server.cluster.memberList.Members() {
+		if server.cluster.LocalNode() == member {
+			continue
+		}
+
+		buffer.WriteString(fmt.Sprintf("%s\n", member.Address()))
+		server.relayCommand(&buffer, nodeCmd, member)
+		buffer.WriteString("\n")
+	}
+
+	return PayloadResult{data: buffer.String()}, nil
+}
+
+func (cmd ClusterStatsCmd) String() string {
+	return "cluster stats"
 }
 
 func NewClusterJoinCmd(arguments string) (*ClusterJoinCmd, error) {
@@ -140,6 +247,10 @@ func (cmd *ClusterJoinCmd) execute(server *Server) (Result, error) {
 	return VoidResult{}, nil
 }
 
+func (cmd ClusterJoinCmd) String() string {
+	return fmt.Sprintf("cluster join %s", cmd.address)
+}
+
 func extractUntil(input string, delimiter string) (string, string, error) {
 	delimiterPos := strings.Index(input, delimiter)
 	if delimiterPos == -1 {
@@ -155,10 +266,11 @@ func parseClusterCommand(input string) (Command, error) {
 	switch input {
 	case "nodes":
 		return NewClusterListNodesCmd()
+	case "stats":
+		return NewClusterStatsCmd()
 	}
 
 	// then, try to parse subcommands that do have arguments
-	fmt.Println("→", input)
 	action, arguments, err := extractUntil(string(input), " ")
 	if err != nil {
 		return nil, errors.Wrap(err, "Could not parse cluster subcommand")
@@ -170,6 +282,16 @@ func parseClusterCommand(input string) (Command, error) {
 	default:
 		return nil, errors.New(fmt.Sprintf("Unknown cluster subcommand %q", action))
 	}
+}
+
+func parseNodeCommand(input string) (Command, error) {
+	// first, handle the subcommands that do NOT have any argument
+	switch input {
+	case "stats":
+		return NewNodeStatsCmd()
+	}
+
+	return nil, errors.New(fmt.Sprintf("Unknown cluster subcommand %q", input))
 }
 
 func parseCommand(reader io.Reader) (Command, error) {
@@ -194,6 +316,8 @@ func parseCommand(reader io.Reader) (Command, error) {
 		return NewFetchCmd(arguments)
 	case "del":
 		return NewDelCmd(arguments)
+	case "node":
+		return parseNodeCommand(arguments)
 	case "cluster":
 		return parseClusterCommand(arguments)
 	default:

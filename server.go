@@ -2,6 +2,7 @@ package gostore
 
 import (
 	"fmt"
+	"github.com/hashicorp/memberlist"
 	"io"
 	"log"
 	"net"
@@ -51,14 +52,48 @@ func (server Server) handleConnection(conn net.Conn) {
 		return
 	}
 
-	res, err := cmd.execute(&server)
-	if err != nil {
-		server.logger.Printf("Error while executing command: %s", err)
-		io.Copy(conn, strings.NewReader(fmt.Sprintf("ERR\n%s", err)))
+	if !cmd.distributed() {
+		server.execute(conn, cmd)
 		return
 	}
 
-	_, err = io.Copy(conn, strings.NewReader(res.String()))
+	responsibleNode := server.cluster.ResponsibleNode(cmd.hashingKey())
+
+	// distributed command, but we happen to be the node responsible for it
+	if server.cluster.LocalNode() == responsibleNode {
+		server.execute(conn, cmd)
+		return
+	}
+
+	server.relayCommand(conn, cmd, responsibleNode)
+}
+
+func (server Server) relayCommand(dest io.Writer, cmd Command, remote *memberlist.Node) {
+	remoteConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", remote.Addr, remote.Port-1))
+	if err != nil {
+		server.logger.Printf("Could not connect to node: %s", remote.Address())
+		return
+	}
+	defer remoteConn.Close()
+
+	_, err = fmt.Fprintf(remoteConn, "%s\n", cmd)
+	if err != nil {
+		server.logger.Printf("Could not relay command to node: %s", remote.Address())
+		return
+	}
+
+	io.Copy(dest, remoteConn)
+}
+
+func (server Server) execute(dest io.Writer, cmd Command) {
+	res, err := cmd.execute(&server)
+	if err != nil {
+		server.logger.Printf("Error while executing command: %s", err)
+		io.Copy(dest, strings.NewReader(fmt.Sprintf("ERR\n%s", err)))
+		return
+	}
+
+	_, err = io.Copy(dest, strings.NewReader(res.String()))
 	if err != nil {
 		server.logger.Printf("Could not send response: %s", err)
 	}
