@@ -11,17 +11,16 @@ jobs:
     environment:
       TEST_RESULTS: /tmp/test-results
 
+    pre:
+      - go get github.com/mattn/goveralls
+
     steps:
       - checkout
       - run: mkdir -p $TEST_RESULTS
 
-      - run: go get -v github.com/jstemmer/go-junit-report
-
       - run:
           name: Run unit tests
-          command: |
-            trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
-            go test -v | tee ${TEST_RESULTS}/go-test.out
+          command: go test -v -coverprofile=$TEST_RESULTS/coverage.out
 
-      - store_test_results: # Upload test results for display in Test Summary: https://circleci.com/docs/2.0/collect-test-data/
-          path: /tmp/test-results
+    post:
+      - goveralls -coverprofile=$TEST_RESULTS/coverage.out -service=circle-ci -repotoken=$COVERALLS_TOKEN
