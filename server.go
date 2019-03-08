@@ -2,7 +2,6 @@ package gostore
 
 import (
 	"fmt"
-	"github.com/hashicorp/memberlist"
 	"io"
 	"log"
 	"net"
@@ -60,7 +59,7 @@ func (server Server) handleConnection(conn net.Conn) {
 	responsibleNode := server.cluster.ResponsibleNode(cmd.hashingKey())
 
 	// distributed command, but we happen to be the node responsible for it
-	if server.cluster.LocalNode() == responsibleNode {
+	if server.cluster.LocalNode().Address() == responsibleNode.Address() {
 		server.execute(conn, cmd)
 		return
 	}
@@ -68,8 +67,8 @@ func (server Server) handleConnection(conn net.Conn) {
 	server.relayCommand(conn, cmd, responsibleNode)
 }
 
-func (server Server) relayCommand(dest io.Writer, cmd Command, remote *memberlist.Node) {
-	remoteConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", remote.Addr, remote.Port-1))
+func (server Server) relayCommand(dest io.Writer, cmd Command, remote Node) {
+	remoteConn, err := net.Dial("tcp", remote.Address())
 	if err != nil {
 		server.logger.Printf("Could not connect to node: %s", remote.Address())
 		return

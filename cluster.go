@@ -1,21 +1,33 @@
 package gostore
 
 import (
-	"encoding/binary"
 	"fmt"
-	"github.com/dgryski/go-farm"
 	"github.com/hashicorp/memberlist"
 	"log"
 	"math/rand"
+	"net"
 	"os"
+	"strconv"
 	"time"
 )
+
+type Node interface {
+	Address() string
+}
+
+type NodeRef struct {
+	host string
+	port uint16
+}
 
 type Cluster struct {
 	logger *log.Logger
 	memberList *memberlist.Memberlist
-	seed uint64
-	seedsMap map[string]uint64
+	router Router
+}
+
+func (node NodeRef) Address() string {
+	return net.JoinHostPort(node.host, strconv.Itoa(int(node.port)))
 }
 
 func (cluster *Cluster) createMemberList(port int) {
@@ -41,16 +53,13 @@ func (cluster *Cluster) createMemberList(port int) {
 // NotifyJoin is invoked when a node is detected to have joined.
 // The Node argument must not be modified.
 func (cluster *Cluster) NotifyJoin(node *memberlist.Node) {
-	// todo error checking
-	remoteSeed, _ := binary.Uvarint(node.Meta)
-
-	cluster.seedsMap[node.Address()] = remoteSeed
+	cluster.router.AddNode(NodeRef{host: node.Addr.String(), port: node.Port-1}, node.Meta)
 }
 
 // NotifyLeave is invoked when a node is detected to have left.
 // The Node argument must not be modified.
 func (cluster *Cluster) NotifyLeave(node *memberlist.Node) {
-
+	cluster.router.RemoveNode(NodeRef{host: node.Addr.String(), port: node.Port-1})
 }
 
 // NotifyUpdate is invoked when a node is detected to have
@@ -64,10 +73,7 @@ func (cluster *Cluster) NotifyUpdate(node *memberlist.Node) {
 // when broadcasting an alive message. It's length is limited to
 // the given byte size. This metadata is available in the Node structure.
 func (cluster *Cluster) NodeMeta(limit int) []byte {
-	b := make([]byte, binary.MaxVarintLen64)
-	binary.PutUvarint(b, cluster.seed)
-
-	return b
+	return cluster.router.SeedBytes()
 }
 
 // NotifyMsg is called when a user-data message is received.
@@ -107,34 +113,24 @@ func (cluster *Cluster) MergeRemoteState(buf []byte, join bool) {
 
 }
 
-func (cluster Cluster) LocalNode() *memberlist.Node {
-	return cluster.memberList.LocalNode()
+func (cluster Cluster) LocalNode() Node {
+	local := cluster.memberList.LocalNode()
+
+	return NodeRef{host: local.Addr.String(), port: local.Port-1}
 }
 
-func (cluster Cluster) ResponsibleNode(key string) *memberlist.Node {
-	var node *memberlist.Node
-	maxScore := uint64(0)
+func (cluster Cluster) Members() []Node {
+	var nodes []Node
 
 	for _, member := range cluster.memberList.Members() {
-		seed, ok := cluster.seedsMap[member.Address()]
-		if !ok {
-			cluster.logger.Printf("Could not find seed for node %s", member.Address())
-			continue
-		}
-
-		score := cluster.hash(key, seed)
-
-		if score > maxScore {
-			maxScore = score
-			node = member
-		}
+		nodes = append(nodes, NodeRef{host: member.Addr.String(), port: member.Port-1})
 	}
 
-	return node
+	return nodes
 }
 
-func (cluster Cluster) hash(key string, seed uint64) uint64 {
-	return farm.Hash64WithSeed([]byte(key), seed)
+func (cluster Cluster) ResponsibleNode(key string) Node {
+	return cluster.router.ResponsibleNode(key)
 }
 
 func (cluster *Cluster) Join(member string) error {
@@ -146,8 +142,7 @@ func (cluster *Cluster) Join(member string) error {
 func NewCluster(logger *log.Logger, port int) *Cluster {
 	cluster := &Cluster{
 		logger: logger,
-		seed: rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(),
-		seedsMap: make(map[string]uint64),
+		router: NewRouter(),
 	}
 
 	cluster.createMemberList(port)

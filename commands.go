@@ -211,14 +211,14 @@ func (cmd *ClusterStatsCmd) execute(server *Server) (Result, error) {
 	buffer.WriteString(fmt.Sprintf("%s\n", server.cluster.LocalNode().Address()))
 	buffer.WriteString(fmt.Sprintf("Keys: %d\n", server.store.Len()))
 
-	for _, member := range server.cluster.memberList.Members() {
-		if server.cluster.LocalNode() == member {
+	for _, member := range server.cluster.Members() {
+		if server.cluster.LocalNode().Address() == member.Address() {
 			continue
 		}
 
+		buffer.WriteString("---\n")
 		buffer.WriteString(fmt.Sprintf("%s\n", member.Address()))
 		server.relayCommand(&buffer, nodeCmd, member)
-		buffer.WriteString("\n")
 	}
 
 	return PayloadResult{data: buffer.String()}, nil
