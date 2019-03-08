@@ -12,9 +12,10 @@ jobs:
       TEST_RESULTS: /tmp/test-results
 
     pre:
-      - go get github.com/mattn/goveralls
 
     steps:
+      - run: go get github.com/mattn/goveralls
+
       - checkout
       - run: mkdir -p $TEST_RESULTS
 
@@ -22,5 +23,4 @@ jobs:
           name: Run unit tests
           command: go test -v -coverprofile=$TEST_RESULTS/coverage.out
 
-    post:
-      - goveralls -coverprofile=$TEST_RESULTS/coverage.out -service=circle-ci -repotoken=$COVERALLS_TOKEN
+      - run: goveralls -coverprofile=$TEST_RESULTS/coverage.out -service=circle-ci -repotoken=$COVERALLS_TOKEN
