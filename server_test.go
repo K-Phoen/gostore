@@ -59,6 +59,11 @@ func (suite *serverTestSuite) TestItHandlesRequests() {
 		want    []byte
 	}{
 		{
+			"A local command can be executed",
+			[]byte("node stats\n"),
+			[]byte("7\nKeys: 0"),
+		},
+		{
 			"Data can be stored",
 			[]byte("store key some-value\n"),
 			[]byte("OK"),
