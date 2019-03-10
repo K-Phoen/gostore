@@ -21,6 +21,21 @@ func TestValidStoreCmdParsing(t *testing.T) {
 	require.Equal(t, "store some-key some-value", storeCmd.String())
 }
 
+func TestValidStoreXCmdParsing(t *testing.T) {
+	cmd, err := parseCommand(strings.NewReader("storex some-key 10s some-value\n"))
+
+	require.NoError(t, err, "Parsing a valid storex command should not return errors")
+	require.IsType(t, &StoreExpiringCmd{}, cmd)
+
+	storeCmd := cmd.(*StoreExpiringCmd)
+	require.Equal(t, "some-key", storeCmd.key)
+	require.Equal(t, "some-value", storeCmd.value)
+	require.Equal(t, "10s", storeCmd.lifetime.String())
+	require.True(t, storeCmd.distributed())
+	require.Equal(t, "some-key", storeCmd.hashingKey())
+	require.Equal(t, "storex some-key 10s some-value", storeCmd.String())
+}
+
 func TestValidFetchCmdParsing(t *testing.T) {
 	cmd, err := parseCommand(strings.NewReader("fetch some-key\n"))
 
@@ -114,6 +129,14 @@ func TestInvalidCommandsReturnErrors(t *testing.T) {
 		"store some-key\n",
 		"store some-key \n",
 		"store some-key some-value",
+
+		"storex\n",
+		"storex \n",
+		"storex some-key\n",
+		"storex some-key 10s\n",
+		"storex some-key 10s some-value",
+		"storex some-key some-value\n",
+		"storex some-key 10invalid-duration some-value\n",
 
 		"node unknown\n",
 

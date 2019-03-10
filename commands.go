@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	"strings"
+	"time"
 )
 
 type Command interface {
@@ -38,6 +39,15 @@ type StoreCmd struct {
 
 	key   string
 	value string
+}
+
+type StoreExpiringCmd struct {
+	distributedCmd
+
+	key   string
+	value string
+
+	lifetime time.Duration
 }
 
 type FetchCmd struct {
@@ -118,6 +128,47 @@ func (cmd StoreCmd) hashingKey() string {
 
 func (cmd StoreCmd) String() string {
 	return fmt.Sprintf("store %s %s", cmd.key, cmd.value)
+}
+
+func NewStoreExpiringCmd(arguments string) (*StoreExpiringCmd, error) {
+	key, rest, err := extractUntil(arguments, " ")
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not extract key")
+	}
+
+	lifetimeStr, rest, err := extractUntil(rest, " ")
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not extract lifetime")
+	}
+
+	lifetime, err := time.ParseDuration(lifetimeStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid lifetime given")
+	}
+
+	if len(rest) == 0 {
+		return nil, errors.New("No value given")
+	}
+
+	return &StoreExpiringCmd{
+		key:   key,
+		value: rest,
+		lifetime: lifetime,
+	}, nil
+}
+
+func (cmd *StoreExpiringCmd) execute(server *Server) (Result, error) {
+	server.store.SetExpiring(cmd.key, cmd.value, cmd.lifetime)
+
+	return VoidResult{}, nil
+}
+
+func (cmd StoreExpiringCmd) hashingKey() string {
+	return cmd.key
+}
+
+func (cmd StoreExpiringCmd) String() string {
+	return fmt.Sprintf("storex %s %s %s", cmd.key, cmd.lifetime, cmd.value)
 }
 
 func NewFetchCmd(arguments string) (*FetchCmd, error) {
@@ -312,6 +363,8 @@ func parseCommand(reader io.Reader) (Command, error) {
 	switch action {
 	case "store":
 		return NewStoreCmd(arguments)
+	case "storex":
+		return NewStoreExpiringCmd(arguments)
 	case "fetch":
 		return NewFetchCmd(arguments)
 	case "del":
