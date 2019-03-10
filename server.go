@@ -45,7 +45,7 @@ func DefaultConfig() Config {
 		ReadTimeout: 5 * time.Second,
 		WriteTimeout: 5 * time.Second,
 
-		StabilizeInterval: 5 * time.Minute,
+		StabilizeInterval: 5 * time.Second,
 		StabilizeBatchSize: 5, // percent
 
 		EvictionInterval: 10 * time.Second,
@@ -231,15 +231,25 @@ func (server *Server) evictExpired() {
 }
 
 func (server *Server) stabilizeKey(key string, remote Node) {
-	value, _, err := server.store.Get(key)
+	value, lifetime, err := server.store.Get(key)
 	if err != nil {
 		return
 	}
 
-	storeCmd := &StoreCmd{
-		key: key,
-		value: value,
+	var storeCmd Command
+	if lifetime == 0 {
+		storeCmd = &StoreCmd{
+			key: key,
+			value: value,
+		}
+	} else {
+		storeCmd = &StoreExpiringCmd{
+			key: key,
+			value: value,
+			lifetime: time.Until(time.Unix(lifetime, 0)),
+		}
 	}
+
 	delCmd := DelCmd{key: key}
 
 	// send the key-value pair to the remote server
