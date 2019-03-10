@@ -83,6 +83,11 @@ func (suite *serverTestSuite) TestItHandlesRequests() {
 			[]byte("del key\n"),
 			[]byte("OK"),
 		},
+		{
+			"Invalid requests do not crash the server",
+			[]byte("store key \n"),
+			[]byte("ERR\nNo value given"),
+		},
 	}
 
 	test := suite.Require()
