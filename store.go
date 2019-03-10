@@ -1,10 +1,14 @@
 package gostore
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"sync"
 	"time"
+)
+
+var (
+	KeyNotFound = errors.New("key not found")
+	KeyExpired = errors.New("key has expired")
 )
 
 type entry struct {
@@ -59,13 +63,13 @@ func (store *Store) Get(key string) (string, int64, error) {
 	item, exists := store.data[key]
 
 	if !exists {
-		return "", 0, errors.New(fmt.Sprintf("No data for key %q", key))
+		return "", 0, KeyNotFound
 	}
 
 
 	if item.Expired() {
 		delete(store.data, key)
-		return "", 0, errors.New(fmt.Sprintf("Key %q has expired", key))
+		return "", 0, KeyExpired
 	}
 
 	return item.value, item.expiration, nil

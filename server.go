@@ -20,6 +20,10 @@ type Config struct {
 	StabilizeInterval time.Duration
 	// percentage of keys in the store to stabilize per batch
 	StabilizeBatchSize int
+
+	EvictionInterval time.Duration
+	// percentage of keys in the store to evict per batch
+	EvictionBatchSize int
 }
 
 type Server struct {
@@ -41,8 +45,11 @@ func DefaultConfig() Config {
 		ReadTimeout: 5 * time.Second,
 		WriteTimeout: 5 * time.Second,
 
-		StabilizeInterval: 10 * time.Second,
-		StabilizeBatchSize: 20, // percent
+		StabilizeInterval: 5 * time.Minute,
+		StabilizeBatchSize: 5, // percent
+
+		EvictionInterval: 10 * time.Second,
+		EvictionBatchSize: 20, // percent
 	}
 }
 
@@ -123,6 +130,7 @@ func (server *Server) Start() {
 	server.logger.Printf("Listening to %s:%d", server.config.Host, server.config.Port)
 
 	server.startStabilizationRoutine()
+	server.startEvictionRoutine()
 
 	for {
 		if server.stopped {
@@ -158,6 +166,24 @@ func (server *Server) startStabilizationRoutine() {
 	}()
 }
 
+func (server *Server) startEvictionRoutine() {
+	ticker := time.NewTicker(server.config.EvictionInterval)
+
+	go func() {
+		for {
+			if server.stopped {
+				ticker.Stop()
+				break
+			}
+
+			select {
+			case <- ticker.C:
+				server.evictExpired()
+			}
+		}
+	}()
+}
+
 func (server *Server) stabilize() {
 	server.logger.Printf("Starting stabilization routine")
 
@@ -183,6 +209,25 @@ func (server *Server) stabilize() {
 	})
 
 	server.logger.Printf("Stabilized %d keys (maximum batch size: %d)", stabilizedKeys, batchSize)
+}
+
+func (server *Server) evictExpired() {
+	server.logger.Printf("Starting eviction routine")
+
+	batchSize := int(float64(server.store.Len()) * float64(server.config.EvictionBatchSize) / 100.0)
+	evictedKeys := 0
+
+	server.store.Keys(func (key string) bool {
+		_, _, err := server.store.Get(key)
+
+		if err == KeyExpired {
+			evictedKeys++
+		}
+
+		return evictedKeys < batchSize
+	})
+
+	server.logger.Printf("Evicted %d keys (maximum batch size: %d)", evictedKeys, batchSize)
 }
 
 func (server *Server) stabilizeKey(key string, remote Node) {
