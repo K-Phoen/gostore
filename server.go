@@ -186,7 +186,7 @@ func (server *Server) stabilize() {
 }
 
 func (server *Server) stabilizeKey(key string, remote Node) {
-	value, err := server.store.Get(key)
+	value, _, err := server.store.Get(key)
 	if err != nil {
 		return
 	}

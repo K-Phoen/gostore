@@ -4,12 +4,27 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"sync"
+	"time"
 )
+
+type entry struct {
+	value string
+
+	expiration int64
+}
 
 type Store struct {
 	mutex sync.RWMutex
 
-	data map[string]string
+	data map[string]entry
+}
+
+func (e entry) Expired() bool {
+	if e.expiration == 0 {
+		return false
+	}
+
+	return time.Now().Unix() >= e.expiration
 }
 
 func (store *Store) Len() int {
@@ -21,7 +36,13 @@ func (store *Store) Len() int {
 
 func (store *Store) Set(key string, value string) {
 	store.mutex.Lock()
-	store.data[key] = value
+	store.data[key] = entry{value: value, expiration: 0}
+	store.mutex.Unlock()
+}
+
+func (store *Store) SetExpiring(key string, value string, lifetime time.Duration) {
+	store.mutex.Lock()
+	store.data[key] = entry{value: value, expiration: time.Now().Add(lifetime).Unix()}
 	store.mutex.Unlock()
 }
 
@@ -31,15 +52,23 @@ func (store *Store) Delete(key string) {
 	store.mutex.Unlock()
 }
 
-func (store *Store) Get(key string) (string, error) {
+func (store *Store) Get(key string) (string, int64, error) {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
 
-	if val, exists := store.data[key]; exists {
-		return val, nil
+	item, exists := store.data[key]
+
+	if !exists {
+		return "", 0, errors.New(fmt.Sprintf("No data for key %q", key))
 	}
 
-	return "", errors.New(fmt.Sprintf("No data for key %q", key))
+
+	if item.Expired() {
+		delete(store.data, key)
+		return "", 0, errors.New(fmt.Sprintf("Key %q has expired", key))
+	}
+
+	return item.value, item.expiration, nil
 }
 
 func (store *Store) Keys(callback func (key string) bool) {
@@ -57,6 +86,6 @@ func (store *Store) Keys(callback func (key string) bool) {
 
 func NewStore() *Store {
 	return &Store{
-		data: make(map[string]string),
+		data: make(map[string]entry),
 	}
 }

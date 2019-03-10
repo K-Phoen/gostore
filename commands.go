@@ -131,7 +131,7 @@ func NewFetchCmd(arguments string) (*FetchCmd, error) {
 }
 
 func (cmd *FetchCmd) execute(server *Server) (Result, error) {
-	val, _ := server.store.Get(cmd.key)
+	val, _, _ := server.store.Get(cmd.key)
 
 	return PayloadResult{
 		data: val,
