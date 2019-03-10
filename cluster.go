@@ -13,6 +13,7 @@ import (
 
 type Node interface {
 	Address() string
+	SameAs(other Node) bool
 }
 
 type NodeRef struct {
@@ -28,6 +29,14 @@ type Cluster struct {
 
 func (node NodeRef) Address() string {
 	return net.JoinHostPort(node.host, strconv.Itoa(int(node.port)))
+}
+
+func (node NodeRef) SameAs(other Node) bool {
+	return node.Address() == other.Address()
+}
+
+func (node NodeRef) String() string {
+	return node.Address()
 }
 
 func (cluster *Cluster) createMemberList(port int) {

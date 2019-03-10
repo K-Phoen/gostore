@@ -1,6 +1,7 @@
 package gostore
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -15,6 +16,10 @@ type Config struct {
 
 	ReadTimeout time.Duration
 	WriteTimeout time.Duration
+
+	StabilizeInterval time.Duration
+	// percentage of keys in the store to stabilize per batch
+	StabilizeBatchSize int
 }
 
 type Server struct {
@@ -35,6 +40,9 @@ func DefaultConfig() Config {
 
 		ReadTimeout: 5 * time.Second,
 		WriteTimeout: 5 * time.Second,
+
+		StabilizeInterval: 10 * time.Second,
+		StabilizeBatchSize: 20, // percent
 	}
 }
 
@@ -59,7 +67,7 @@ func (server Server) handleConnection(conn net.Conn) {
 	responsibleNode := server.cluster.ResponsibleNode(cmd.hashingKey())
 
 	// distributed command, but we happen to be the node responsible for it
-	if server.cluster.LocalNode().Address() == responsibleNode.Address() {
+	if server.cluster.LocalNode().SameAs(responsibleNode) {
 		server.execute(conn, cmd)
 		return
 	}
@@ -114,6 +122,8 @@ func (server *Server) Start() {
 	server.listener = listener
 	server.logger.Printf("Listening to %s:%d", server.config.Host, server.config.Port)
 
+	server.startStabilizationRoutine()
+
 	for {
 		if server.stopped {
 			break
@@ -126,6 +136,86 @@ func (server *Server) Start() {
 		}
 
 		go server.handleConnection(conn)
+	}
+}
+
+func (server *Server) startStabilizationRoutine() {
+	// this could be triggered by "node joined" events instead of periodically
+	ticker := time.NewTicker(server.config.StabilizeInterval)
+
+	go func() {
+		for {
+			if server.stopped {
+				ticker.Stop()
+				break
+			}
+
+			select {
+			case <- ticker.C:
+				server.stabilize()
+			}
+		}
+	}()
+}
+
+func (server *Server) stabilize() {
+	server.logger.Printf("Starting stabilization routine")
+
+	if len(server.cluster.Members()) < 2 {
+		server.logger.Printf("Not enough nodes in the cluster for a stabilization to be needed")
+		return
+	}
+
+	localNode := server.cluster.LocalNode()
+	batchSize := int(float64(server.store.Len()) * float64(server.config.StabilizeBatchSize) / 100.0)
+	stabilizedKeys := 0
+
+	server.store.Keys(func (key string) bool {
+		responsibleNode := server.cluster.ResponsibleNode(key)
+
+		if !localNode.SameAs(responsibleNode) {
+			go server.stabilizeKey(key, responsibleNode)
+
+			stabilizedKeys++
+		}
+
+		return stabilizedKeys < batchSize
+	})
+
+	server.logger.Printf("Stabilized %d keys (maximum batch size: %d)", stabilizedKeys, batchSize)
+}
+
+func (server *Server) stabilizeKey(key string, remote Node) {
+	value, err := server.store.Get(key)
+	if err != nil {
+		return
+	}
+
+	storeCmd := &StoreCmd{
+		key: key,
+		value: value,
+	}
+	delCmd := DelCmd{key: key}
+
+	// send the key-value pair to the remote server
+	storeBuffer := bytes.NewBufferString("")
+	server.relayCommand(storeBuffer, storeCmd, remote)
+
+	result, err := storeBuffer.ReadString('\n')
+	if  result != "OK" && err != nil {
+		server.logger.Printf("Could not stabilize key %q to node %q: %s", key, remote, err)
+		return
+	}
+
+	if result != "OK" {
+		server.logger.Printf("Could not stabilize key %q to node %s: %q", key, remote, storeBuffer.String())
+		return
+	}
+
+	// delete our own copy of it
+	_, err = delCmd.execute(server)
+	if err != nil {
+		server.logger.Printf("Could not delete local copy of stabilized key %q", key)
 	}
 }
 

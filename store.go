@@ -42,6 +42,19 @@ func (store *Store) Get(key string) (string, error) {
 	return "", errors.New(fmt.Sprintf("No data for key %q", key))
 }
 
+func (store *Store) Keys(callback func (key string) bool) {
+	store.mutex.RLock()
+	defer store.mutex.RUnlock()
+
+	for key := range store.data {
+		keepGoing := callback(key)
+
+		if !keepGoing {
+			break
+		}
+	}
+}
+
 func NewStore() *Store {
 	return &Store{
 		data: make(map[string]string),
