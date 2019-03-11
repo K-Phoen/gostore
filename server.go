@@ -295,16 +295,16 @@ func NewServer(logger *log.Logger, config Config) Server {
 	if config.StoragePath == "memory" {
 		store = storage.NewSyncMap()
 	} else {
-		store, err = storage.NewBadgerDb(config.StoragePath)
+		store, err = storage.NewBadgerDb(newPrefixedLogger(logger, "[badger] "), config.StoragePath)
 		if err != nil {
 			logger.Fatalf("Could not start storage engine: %s", err)
 		}
 	}
 
 	return Server{
-		logger: logger,
+		logger: newPrefixedLogger(logger, "[gostore] "),
 		config: config,
 		store:  store,
-		cluster: NewCluster(logger, config.Port+1),
+		cluster: NewCluster(newPrefixedLogger(logger, "[cluster] "), config.Port+1),
 	}
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/K-Phoen/gostore"
 	"github.com/sirupsen/logrus"
 )
@@ -10,7 +11,6 @@ func main() {
 	var cluster string
 
 	config := gostore.DefaultConfig()
-	config.StoragePath = "/tmp/gostore"
 
 	flag.StringVar(&cluster, "cluster", "", "Cluster to join")
 
@@ -25,6 +25,8 @@ func main() {
 		FullTimestamp: true,
 		QuoteEmptyFields: true,
 	})
+
+	config.StoragePath = fmt.Sprintf("/tmp/gostore-%d", config.Port)
 
 	server := gostore.NewServer(logger, config)
 

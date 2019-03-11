@@ -89,10 +89,12 @@ func (s *badgerDb) Keys(callback func (key string) bool) {
 	})
 }
 
-func NewBadgerDb(storagePath string) (Store, error) {
+func NewBadgerDb(logger badger.Logger, storagePath string) (Store, error) {
 	opts := badger.DefaultOptions
 	opts.Dir = storagePath
 	opts.ValueDir = storagePath
+	opts.SyncWrites = false
+	opts.Logger = logger
 
 	db, err := badger.Open(opts)
 	if err != nil {

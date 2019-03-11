@@ -2,8 +2,9 @@ module github.com/K-Phoen/gostore
 
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9 // indirect
-	github.com/dgraph-io/badger v1.5.4
+	github.com/dgraph-io/badger v2.0.0-rc.2+incompatible
 	github.com/dgryski/go-farm v0.0.0-20190104051053-3adb47b1fb0f
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/golang/protobuf v1.3.0 // indirect
 	github.com/hashicorp/memberlist v0.1.3
 	github.com/pkg/errors v0.8.1
