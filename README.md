@@ -9,7 +9,7 @@ rendezvous hashing to distribute data among nodes.
 
 ## Features
 
-* In-memory
+* In-memory, with optional disk persistence using [BadgerDB](https://github.com/dgraph-io/badger)
 * Time-To-Live (TTL) eviction policy
 * Highly available
 * Horizontally scalable
