@@ -3,8 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/K-Phoen/gostore"
-	"log"
-	"os"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -19,7 +18,13 @@ func main() {
 
 	flag.Parse()
 
-	logger := log.New(os.Stdout, "gostore ", log.Flags()|log.Lshortfile)
+	logger := logrus.New()
+	logger.SetLevel(logrus.TraceLevel)
+	logger.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+		QuoteEmptyFields: true,
+	})
+
 	server := gostore.NewServer(logger, config)
 
 	go server.Start()

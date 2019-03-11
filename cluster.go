@@ -3,6 +3,7 @@ package gostore
 import (
 	"fmt"
 	"github.com/hashicorp/memberlist"
+	"github.com/sirupsen/logrus"
 	"log"
 	"math/rand"
 	"net"
@@ -22,7 +23,7 @@ type NodeRef struct {
 }
 
 type Cluster struct {
-	logger *log.Logger
+	logger *logrus.Logger
 	memberList *memberlist.Memberlist
 	router Router
 }
@@ -47,7 +48,7 @@ func (cluster *Cluster) createMemberList(port int) {
 	config.Name = fmt.Sprintf("%s-%X", hostName, hostNumber)
 	config.BindPort = port
 	config.AdvertisePort = port
-	config.Logger = cluster.logger
+	config.Logger = log.New(cluster.logger.Writer(), "", 0)
 	config.Delegate = cluster
 	config.Events = cluster
 
@@ -148,7 +149,7 @@ func (cluster *Cluster) Join(member string) error {
 	return err
 }
 
-func NewCluster(logger *log.Logger, port int) *Cluster {
+func NewCluster(logger *logrus.Logger, port int) *Cluster {
 	cluster := &Cluster{
 		logger: logger,
 		router: NewRouter(),
