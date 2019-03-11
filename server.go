@@ -15,6 +15,8 @@ type Config struct {
 	Host string
 	Port int
 
+	StoragePath string
+
 	ReadTimeout time.Duration
 	WriteTimeout time.Duration
 
@@ -42,6 +44,8 @@ func DefaultConfig() Config {
 	return Config{
 		Host: "0.0.0.0",
 		Port: 4224,
+
+		StoragePath: "memory",
 
 		ReadTimeout: 5 * time.Second,
 		WriteTimeout: 5 * time.Second,
@@ -247,7 +251,7 @@ func (server *Server) stabilizeKey(key string, remote Node) {
 		storeCmd = &StoreExpiringCmd{
 			key: key,
 			value: value,
-			lifetime: time.Until(time.Unix(lifetime, 0)),
+			lifetime: time.Until(time.Unix(int64(lifetime), 0)),
 		}
 	}
 
@@ -285,10 +289,22 @@ func (server *Server) Stop() {
 }
 
 func NewServer(logger *log.Logger, config Config) Server {
+	var store storage.Store
+	var err error
+
+	if config.StoragePath == "memory" {
+		store = storage.NewSyncMap()
+	} else {
+		store, err = storage.NewBadgerDb(config.StoragePath)
+		if err != nil {
+			logger.Fatalf("Could not start storage engine: %s", err)
+		}
+	}
+
 	return Server{
 		logger: logger,
 		config: config,
-		store:  storage.NewSyncMap(),
+		store:  store,
 		cluster: NewCluster(logger, config.Port+1),
 	}
 }

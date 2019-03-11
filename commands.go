@@ -117,7 +117,10 @@ func NewStoreCmd(arguments string) (*StoreCmd, error) {
 }
 
 func (cmd *StoreCmd) execute(server *Server) (Result, error) {
-	server.store.Set(cmd.key, cmd.value)
+	err := server.store.Set(cmd.key, cmd.value)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not store value")
+	}
 
 	return VoidResult{}, nil
 }
@@ -158,7 +161,10 @@ func NewStoreExpiringCmd(arguments string) (*StoreExpiringCmd, error) {
 }
 
 func (cmd *StoreExpiringCmd) execute(server *Server) (Result, error) {
-	server.store.SetExpiring(cmd.key, cmd.value, cmd.lifetime)
+	err := server.store.SetExpiring(cmd.key, cmd.value, cmd.lifetime)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not store expiring value")
+	}
 
 	return VoidResult{}, nil
 }
@@ -208,7 +214,10 @@ func NewDelCmd(arguments string) (*DelCmd, error) {
 }
 
 func (cmd *DelCmd) execute(server *Server) (Result, error) {
-	server.store.Delete(cmd.key)
+	err := server.store.Delete(cmd.key)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not delete value")
+	}
 
 	return VoidResult{}, nil
 }

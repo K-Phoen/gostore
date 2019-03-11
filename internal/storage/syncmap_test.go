@@ -7,7 +7,7 @@ import (
 )
 
 func TestBasicMapFeatures(t *testing.T) {
-	store := NewMap()
+	store := NewSyncMap()
 
 	require.Equal(t, 0, store.Len(), "An empty store should have no length")
 

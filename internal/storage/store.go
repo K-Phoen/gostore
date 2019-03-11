@@ -11,12 +11,12 @@ var (
 )
 
 type Store interface {
-	Get(key string) (string, int64, error)
+	Get(key string) (string, uint64, error)
 
-	Set(key string, value string)
-	SetExpiring(key string, value string, lifetime time.Duration)
+	Set(key string, value string) error
+	SetExpiring(key string, value string, lifetime time.Duration) error
 
-	Delete(key string)
+	Delete(key string) error
 
 	Len() int
 	Keys(callback func (key string) bool)

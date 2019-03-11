@@ -10,6 +10,7 @@ func main() {
 	var cluster string
 
 	config := gostore.DefaultConfig()
+	config.StoragePath = "/tmp/gostore"
 
 	flag.StringVar(&cluster, "cluster", "", "Cluster to join")
 

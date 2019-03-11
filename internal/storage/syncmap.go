@@ -8,7 +8,7 @@ import (
 type entry struct {
 	value string
 
-	expiration int64
+	expiration uint64
 }
 
 type syncMap struct {
@@ -22,7 +22,7 @@ func (e entry) Expired() bool {
 		return false
 	}
 
-	return time.Now().Unix() >= e.expiration
+	return uint64(time.Now().Unix()) >= e.expiration
 }
 
 func (m *syncMap) Len() int {
@@ -32,25 +32,31 @@ func (m *syncMap) Len() int {
 	return len(m.data)
 }
 
-func (m *syncMap) Set(key string, value string) {
+func (m *syncMap) Set(key string, value string) error {
 	m.mutex.Lock()
 	m.data[key] = entry{value: value, expiration: 0}
 	m.mutex.Unlock()
+
+	return nil
 }
 
-func (m *syncMap) SetExpiring(key string, value string, lifetime time.Duration) {
+func (m *syncMap) SetExpiring(key string, value string, lifetime time.Duration) error {
 	m.mutex.Lock()
-	m.data[key] = entry{value: value, expiration: time.Now().Add(lifetime).Unix()}
+	m.data[key] = entry{value: value, expiration: uint64(time.Now().Add(lifetime).Unix())}
 	m.mutex.Unlock()
+
+	return nil
 }
 
-func (m *syncMap) Delete(key string) {
+func (m *syncMap) Delete(key string) error {
 	m.mutex.Lock()
 	delete(m.data, key)
 	m.mutex.Unlock()
+
+	return nil
 }
 
-func (m *syncMap) Get(key string) (string, int64, error) {
+func (m *syncMap) Get(key string) (string, uint64, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
