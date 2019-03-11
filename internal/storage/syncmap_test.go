@@ -1,4 +1,4 @@
-package gostore
+package storage
 
 import (
 	"github.com/stretchr/testify/require"
@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func TestBasicFeatures(t *testing.T) {
-	store := NewStore()
+func TestBasicMapFeatures(t *testing.T) {
+	store := NewMap()
 
 	require.Equal(t, 0, store.Len(), "An empty store should have no length")
 

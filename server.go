@@ -3,6 +3,7 @@ package gostore
 import (
 	"bytes"
 	"fmt"
+	"github.com/K-Phoen/gostore/internal/storage"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
@@ -30,7 +31,7 @@ type Server struct {
 	config Config
 
 	logger *log.Logger
-	store  *Store
+	store  storage.Store
 	cluster *Cluster
 
 	listener net.Listener
@@ -220,7 +221,7 @@ func (server *Server) evictExpired() {
 	server.store.Keys(func (key string) bool {
 		_, _, err := server.store.Get(key)
 
-		if err == KeyExpired {
+		if err == storage.KeyExpired {
 			evictedKeys++
 		}
 
@@ -287,7 +288,7 @@ func NewServer(logger *log.Logger, config Config) Server {
 	return Server{
 		logger: logger,
 		config: config,
-		store:  NewStore(),
+		store:  storage.NewSyncMap(),
 		cluster: NewCluster(logger, config.Port+1),
 	}
 }
