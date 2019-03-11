@@ -2,10 +2,10 @@ package gostore
 
 import (
 	"bufio"
+	logging "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"io/ioutil"
-	"log"
 	"net"
 	"testing"
 	"time"
@@ -19,7 +19,7 @@ type serverTestSuite struct {
 
 func (suite *serverTestSuite) SetupSuite() {
 	config := DefaultConfig()
-	logger := log.New(ioutil.Discard, "", log.LstdFlags)
+	logger, _ := logging.NewNullLogger()
 	server := NewServer(logger, config)
 
 	suite.server = &server
