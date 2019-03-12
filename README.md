@@ -5,11 +5,12 @@ Gostore is a [distributed hash table](https://en.wikipedia.org/wiki/Distributed_
 the [SWIM protocol](https://blog.kevingomez.fr/2019/01/29/clusters-and-membership-discovering-the-swim-protocol/) and
 rendezvous hashing to distribute data among nodes.
 
-**Disclaimer:** this is a pet project, build to explore the world of DHTs and distributed systems. **Do not use it in production.**
+**Disclaimer:** this is a pet project, built to explore the world of DHTs and distributed systems. **Do not use it in production.**
 
 ## Features
 
 * In-memory, with optional disk persistence using [BadgerDB](https://github.com/dgraph-io/badger)
+* Simple query/response protocol
 * Time-To-Live (TTL) eviction policy
 * Highly available
 * Horizontally scalable
@@ -23,6 +24,10 @@ TODO
 ```
 make tests
 ```
+
+## Architecture
+
+TODO
 
 ## License
 
