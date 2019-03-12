@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/K-Phoen/gostore"
 	"github.com/sirupsen/logrus"
 )
@@ -16,6 +15,7 @@ func main() {
 
 	flag.StringVar(&config.Host, "host", config.Host, "Host to listen to")
 	flag.IntVar(&config.Port, "port", config.Port, "Port to listen to")
+	flag.StringVar(&config.StoragePath, "storage", config.StoragePath, "Storage path (\"memory\" to use in-memory storage)")
 
 	flag.Parse()
 
@@ -25,8 +25,6 @@ func main() {
 		FullTimestamp: true,
 		QuoteEmptyFields: true,
 	})
-
-	config.StoragePath = fmt.Sprintf("/tmp/gostore-%d", config.Port)
 
 	server := gostore.NewServer(logger, config)
 

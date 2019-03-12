@@ -52,9 +52,6 @@ func DefaultConfig() Config {
 
 		StabilizeInterval: 5 * time.Minute,
 		StabilizeBatchSize: 5, // percent
-
-		EvictionInterval: 10 * time.Second,
-		EvictionBatchSize: 20, // percent
 	}
 }
 
@@ -135,7 +132,6 @@ func (server *Server) Start() {
 	server.logger.Infof("Listening to %s:%d", server.config.Host, server.config.Port)
 
 	server.startStabilizationRoutine()
-	server.startEvictionRoutine()
 
 	for {
 		if server.stopped {
@@ -171,24 +167,6 @@ func (server *Server) startStabilizationRoutine() {
 	}()
 }
 
-func (server *Server) startEvictionRoutine() {
-	ticker := time.NewTicker(server.config.EvictionInterval)
-
-	go func() {
-		for {
-			if server.stopped {
-				ticker.Stop()
-				break
-			}
-
-			select {
-			case <- ticker.C:
-				server.evictExpired()
-			}
-		}
-	}()
-}
-
 func (server *Server) stabilize() {
 	server.logger.Debug("Starting stabilization routine")
 
@@ -214,25 +192,6 @@ func (server *Server) stabilize() {
 	})
 
 	server.logger.Debugf("Stabilized %d keys (maximum batch size: %d)", stabilizedKeys, batchSize)
-}
-
-func (server *Server) evictExpired() {
-	server.logger.Debugf("Starting eviction routine")
-
-	batchSize := int(float64(server.store.Len()) * float64(server.config.EvictionBatchSize) / 100.0)
-	evictedKeys := 0
-
-	server.store.Keys(func (key string) bool {
-		_, _, err := server.store.Get(key)
-
-		if err == storage.KeyExpired {
-			evictedKeys++
-		}
-
-		return evictedKeys < batchSize
-	})
-
-	server.logger.Debugf("Evicted %d keys (maximum batch size: %d)", evictedKeys, batchSize)
 }
 
 func (server *Server) stabilizeKey(key string, remote Node) {
@@ -293,7 +252,7 @@ func NewServer(logger *log.Logger, config Config) Server {
 	var err error
 
 	if config.StoragePath == "memory" {
-		store = storage.NewSyncMap()
+		store = storage.NewSyncMap( newPrefixedLogger(logger, "[syncMap] "))
 	} else {
 		store, err = storage.NewBadgerDb(newPrefixedLogger(logger, "[badger] "), config.StoragePath)
 		if err != nil {

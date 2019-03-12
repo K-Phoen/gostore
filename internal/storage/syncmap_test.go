@@ -1,13 +1,15 @@
 package storage
 
 import (
+	logging "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
 
 func TestBasicMapFeatures(t *testing.T) {
-	store := NewSyncMap()
+	logger, _ := logging.NewNullLogger()
+	store := NewSyncMap(logger)
 
 	require.Equal(t, 0, store.Len(), "An empty store should have no length")
 

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
 )
@@ -15,6 +16,12 @@ type syncMap struct {
 	mutex sync.RWMutex
 
 	data map[string]entry
+
+	logger *log.Logger
+
+	evictionInterval time.Duration
+	// in percent
+	evictionBatchSize int
 }
 
 func (e entry) Expired() bool {
@@ -88,8 +95,55 @@ func (m *syncMap) Keys(callback func (key string) bool) {
 	}
 }
 
-func NewSyncMap() Store {
-	return &syncMap{
-		data: make(map[string]entry),
+func (m *syncMap) startEvictionRoutine() {
+	ticker := time.NewTicker(m.evictionInterval)
+
+	go func() {
+		for {
+			select {
+			case <- ticker.C:
+				m.evictExpired()
+			}
+		}
+	}()
+}
+
+func (m *syncMap) evictExpired() {
+	m.logger.Debugf("Starting eviction routine")
+
+	evictedKeys := 0
+
+	m.mutex.Lock()
+
+	batchSize := int(float64(len(m.data)) * float64(m.evictionBatchSize) / 100.0)
+
+	for key, item := range m.data {
+		if item.Expired() {
+			delete(m.data, key)
+			evictedKeys++
+		}
+
+		if evictedKeys >= batchSize {
+			break
+		}
 	}
+
+	m.mutex.Unlock()
+
+	m.logger.Debugf("Evicted %d keys (maximum batch size: %d)", evictedKeys, batchSize)
+}
+
+func NewSyncMap(logger *log.Logger) Store {
+	store := &syncMap{
+		data: make(map[string]entry),
+
+		logger: logger,
+
+		evictionInterval: 10 * time.Second,
+		evictionBatchSize: 20, // percent
+	}
+
+	store.startEvictionRoutine()
+
+	return store
 }
