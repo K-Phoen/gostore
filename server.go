@@ -220,21 +220,16 @@ func (server *Server) stabilizeKey(key string, remote Node) {
 	storeBuffer := bytes.NewBufferString("")
 	server.relayCommand(storeBuffer, storeCmd, remote)
 
-	result, err := storeBuffer.ReadString('\n')
-	if  result != "OK" && err != nil {
-		server.logger.Errorf("Could not stabilize key %q to node %q: %s", key, remote, err)
-		return
-	}
-
-	if result != "OK" {
-		server.logger.Errorf("Could not stabilize key %q to node %s: %q", key, remote, storeBuffer.String())
+	result, err := storeBuffer.ReadByte()
+	if  err != nil || result != '+' {
+		server.logger.Errorf("Could not stabilize key %q to node %q", key, remote)
 		return
 	}
 
 	// delete our own copy of it
 	_, err = delCmd.execute(server)
 	if err != nil {
-		server.logger.Errorf("Could not delete local copy of stabilized key %q", key)
+		server.logger.Errorf("Could not delete local copy of stabilized key %q: %s", key, err)
 	}
 }
 
