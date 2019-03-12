@@ -4,12 +4,15 @@ import (
 	"encoding/binary"
 	"github.com/dgryski/go-farm"
 	"math/rand"
+	"sync"
 	"time"
 )
 
 type Router struct {
 	seed uint64
 	seedsMap map[Node]uint64
+
+	mutex sync.RWMutex
 }
 
 func NewRouter() Router {
@@ -30,14 +33,21 @@ func (router Router) AddNode(node Node, seed []byte) {
 	// todo error checking
 	remoteSeed, _ := binary.Uvarint(seed)
 
+	router.mutex.Lock()
 	router.seedsMap[node] = remoteSeed
+	router.mutex.Unlock()
 }
 
 func (router Router) RemoveNode(node Node) {
+	router.mutex.Lock()
 	delete(router.seedsMap, node)
+	router.mutex.Unlock()
 }
 
 func (router Router) ResponsibleNode(key string) Node {
+	router.mutex.RLock()
+	defer router.mutex.RUnlock()
+
 	var candidate Node
 	maxScore := uint64(0)
 
