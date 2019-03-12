@@ -1,16 +1,54 @@
 package storage
 
 import (
+	"fmt"
 	logging "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"os"
 	"testing"
 	"time"
 )
 
-func TestBasicMapFeatures(t *testing.T) {
-	logger, _ := logging.NewNullLogger()
-	store := NewSyncMap(logger)
+type storageTestSuite struct {
+	suite.Suite
 
+	syncMap Store
+
+	badger Store
+	badgerStoragePath string
+}
+
+func (suite *storageTestSuite) SetupSuite() {
+	logger, _ := logging.NewNullLogger()
+
+	suite.syncMap = NewSyncMap(logger)
+
+	suite.badgerStoragePath = "/tmp/gostore-test-badger-store"
+	badger, err := NewBadgerDb(logger, suite.badgerStoragePath)
+	if err != nil {
+		panic(fmt.Sprintf("Could not start badger storage engine: %s", err))
+	}
+	suite.badger = badger
+}
+
+func (suite *storageTestSuite) TearDownSuite() {
+	os.RemoveAll(suite.badgerStoragePath)
+}
+
+func TestStorageTestSuite(t *testing.T) {
+	suite.Run(t, new(storageTestSuite))
+}
+
+func (suite *storageTestSuite) TestCommonStorageFeaturesWithSyncMap() {
+	commonStorageFeaturesAssertions(suite.T(), suite.syncMap)
+}
+
+func (suite *storageTestSuite) TestCommonStorageFeaturesWithBadger() {
+	commonStorageFeaturesAssertions(suite.T(), suite.badger)
+}
+
+func commonStorageFeaturesAssertions(t *testing.T, store Store) {
 	require.Equal(t, 0, store.Len(), "An empty store should have no length")
 
 	store.Set("known-key", "some-value")

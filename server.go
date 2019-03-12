@@ -252,7 +252,7 @@ func NewServer(logger *log.Logger, config Config) Server {
 	var err error
 
 	if config.StoragePath == "memory" {
-		store = storage.NewSyncMap( newPrefixedLogger(logger, "[syncMap] "))
+		store = storage.NewSyncMap(newPrefixedLogger(logger, "[syncMap] "))
 	} else {
 		store, err = storage.NewBadgerDb(newPrefixedLogger(logger, "[badger] "), config.StoragePath)
 		if err != nil {
