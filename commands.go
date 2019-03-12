@@ -237,8 +237,8 @@ func NewClusterListNodesCmd() (*ClusterListNodesCmd, error) {
 func (cmd *ClusterListNodesCmd) execute(server *Server) (Result, error) {
 	var buffer bytes.Buffer
 
-	for _, member := range server.cluster.memberList.Members() {
-		buffer.WriteString(fmt.Sprintf("%s %s:%d\n", member.Name, member.Addr, member.Port))
+	for _, member := range server.cluster.Members() {
+		buffer.WriteString(fmt.Sprintf("%s\n", member.Address()))
 	}
 
 	return PayloadResult{data: buffer.String()}, nil
