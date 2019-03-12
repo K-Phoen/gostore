@@ -1,42 +1,25 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
-	"net"
+	"github.com/K-Phoen/gostore/client"
 	"sync"
 )
-
-func sendRequest(host string, port int, request string) {
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
-	if err != nil {
-		fmt.Printf("Could not connect to server: %s", err)
-		return
-	}
-	defer conn.Close()
-
-	_, err = fmt.Fprintf(conn, "%s\n", request)
-	if err != nil {
-		fmt.Printf("Could not send request\n")
-		return
-	}
-
-	status, err := bufio.NewReader(conn).ReadString('\n')
-
-	if status != "OK" {
-		fmt.Printf("Status: %s\nErr: %s\n", status, err)
-	}
-}
 
 func main() {
 	var host string
 	var port int
 
-	flag.StringVar(&host, "host", "0.0.0.0", "Host to listen to")
-	flag.IntVar(&port, "port", 4224, "Port to listen to")
+	flag.StringVar(&host, "host", "0.0.0.0", "Host")
+	flag.IntVar(&port, "port", 4224, "Port")
 
 	flag.Parse()
+
+	gostore := client.Client{
+		Host: host,
+		Port: port,
+	}
 
 	count := 1000
 	var wg sync.WaitGroup
@@ -48,7 +31,11 @@ func main() {
 
 		wg.Add(1)
 		go func(i int) {
-			sendRequest(host, port, fmt.Sprintf("store key-%d some-value", i))
+			err := gostore.Set(fmt.Sprintf("some-key-%d", i), "some-value")
+			if err != nil {
+				fmt.Printf("Error: %s\n", err)
+			}
+
 			wg.Done()
 		}(i)
 	}

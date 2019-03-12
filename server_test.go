@@ -61,37 +61,37 @@ func (suite *serverTestSuite) TestItHandlesRequests() {
 		{
 			"A local command can be executed",
 			[]byte("node stats\n"),
-			[]byte("7\nKeys: 0"),
+			[]byte("+7\nKeys: 0"),
 		},
 		{
 			"Data can be stored",
 			[]byte("store key some-value\n"),
-			[]byte("OK"),
+			[]byte("+0\n"),
 		},
 		{
 			"Data can be fetched",
 			[]byte("fetch key\n"),
-			[]byte("10\nsome-value"),
+			[]byte("+10\nsome-value"),
 		},
 		{
 			"Data can be fetched",
 			[]byte("fetch unknown-key\n"),
-			[]byte("0\n"),
+			[]byte("+0\n"),
 		},
 		{
 			"Data can be deleted",
 			[]byte("del key\n"),
-			[]byte("OK"),
+			[]byte("+0\n"),
 		},
 		{
 			"Data can be deleted twice",
 			[]byte("del key\n"),
-			[]byte("OK"),
+			[]byte("+0\n"),
 		},
 		{
 			"Invalid requests do not crash the server",
 			[]byte("store key \n"),
-			[]byte("ERR\nNo value given"),
+			[]byte("-14\nNo value given"),
 		},
 	}
 
@@ -110,13 +110,13 @@ func (suite *serverTestSuite) TestItHandlesExpiringKeys() {
 	test := suite.Require()
 
 	response := sendRequest(test, []byte("storex expiring-key 1s some-value\n"))
-	test.Equal([]byte("OK"), response)
+	test.Equal([]byte("+0\n"), response)
 
 	response = sendRequest(test, []byte("fetch expiring-key\n"))
-	test.Equal([]byte("10\nsome-value"), response)
+	test.Equal([]byte("+10\nsome-value"), response)
 
 	time.Sleep(time.Second)
 
 	response = sendRequest(test, []byte("fetch expiring-key\n"))
-	test.Equal([]byte("0\n"), response)
+	test.Equal([]byte("+0\n"), response)
 }

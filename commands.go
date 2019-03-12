@@ -81,11 +81,11 @@ type ClusterJoinCmd struct {
 }
 
 func (r VoidResult) String() string {
-	return "OK"
+	return "+0\n"
 }
 
 func (r PayloadResult) String() string {
-	return fmt.Sprintf("%d\n%s", len(r.data), r.data)
+	return fmt.Sprintf("+%d\n%s", len(r.data), r.data)
 }
 
 func (cmd distributedCmd) distributed() bool {

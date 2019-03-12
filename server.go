@@ -67,7 +67,7 @@ func (server Server) handleConnection(conn net.Conn) {
 	cmd, err := parseCommand(conn)
 	if err != nil {
 		server.logger.Warnf("Invalid command received: %s", err)
-		io.Copy(conn, strings.NewReader(fmt.Sprintf("ERR\n%s", err)))
+		io.Copy(conn, strings.NewReader(fmt.Sprintf("-%d\n%s", len(err.Error()), err)))
 		return
 	}
 
@@ -108,7 +108,7 @@ func (server Server) execute(dest io.Writer, cmd Command) {
 	res, err := cmd.execute(&server)
 	if err != nil {
 		server.logger.Warnf("Error while executing command: %s", err)
-		io.Copy(dest, strings.NewReader(fmt.Sprintf("ERR\n%s", err)))
+		io.Copy(dest, strings.NewReader(fmt.Sprintf("-%d\n%s", len(err.Error()), err)))
 		return
 	}
 
