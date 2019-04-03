@@ -236,7 +236,12 @@ func (server *Server) stabilizeKey(key string, remote Node) {
 func (server *Server) Stop() {
 	server.stopped = true
 
-	err := server.listener.Close()
+	err := server.cluster.Shutdown()
+	if err != nil {
+		server.logger.Errorf("Error while stopping cluster management: %s", err)
+	}
+
+	err = server.listener.Close()
 	if err != nil {
 		server.logger.Errorf("Error while stopping server: %s", err)
 	}
