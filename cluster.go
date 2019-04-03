@@ -22,6 +22,10 @@ type NodeRef struct {
 	port uint16
 }
 
+type memberlistDelegate struct {
+	router *Router
+}
+
 type Cluster struct {
 	logger *logrus.Logger
 	memberList *memberlist.Memberlist
@@ -44,13 +48,15 @@ func (cluster *Cluster) createMemberList(port int) {
 	hostNumber := rand.New(rand.NewSource(time.Now().UnixNano())).Int()
 	hostName, _ := os.Hostname()
 
+	delegate := &memberlistDelegate{router: &cluster.router}
+
 	config := memberlist.DefaultLocalConfig()
 	config.Name = fmt.Sprintf("%s-%X", hostName, hostNumber)
 	config.BindPort = port
 	config.AdvertisePort = port
 	config.Logger = log.New(cluster.logger.Writer(), "", 0)
-	config.Delegate = cluster
-	config.Events = cluster
+	config.Delegate = delegate
+	config.Events = delegate
 
 	list, err := memberlist.Create(config)
 	if err != nil {
@@ -62,35 +68,35 @@ func (cluster *Cluster) createMemberList(port int) {
 
 // NotifyJoin is invoked when a node is detected to have joined.
 // The Node argument must not be modified.
-func (cluster *Cluster) NotifyJoin(node *memberlist.Node) {
-	cluster.router.AddNode(NodeRef{host: node.Addr.String(), port: node.Port-1}, node.Meta)
+func (delegate *memberlistDelegate) NotifyJoin(node *memberlist.Node) {
+	delegate.router.AddNode(NodeRef{host: node.Addr.String(), port: node.Port-1}, node.Meta)
 }
 
 // NotifyLeave is invoked when a node is detected to have left.
 // The Node argument must not be modified.
-func (cluster *Cluster) NotifyLeave(node *memberlist.Node) {
-	cluster.router.RemoveNode(NodeRef{host: node.Addr.String(), port: node.Port-1})
+func (delegate *memberlistDelegate) NotifyLeave(node *memberlist.Node) {
+	delegate.router.RemoveNode(NodeRef{host: node.Addr.String(), port: node.Port-1})
 }
 
 // NotifyUpdate is invoked when a node is detected to have
 // updated, usually involving the meta data. The Node argument
 // must not be modified.
-func (cluster *Cluster) NotifyUpdate(node *memberlist.Node) {
-
+func (delegate *memberlistDelegate) NotifyUpdate(node *memberlist.Node) {
+	// nothing to do
 }
 
 // NodeMeta is used to retrieve meta-data about the current node
 // when broadcasting an alive message. It's length is limited to
 // the given byte size. This metadata is available in the Node structure.
-func (cluster *Cluster) NodeMeta(limit int) []byte {
-	return cluster.router.SeedBytes()
+func (delegate *memberlistDelegate) NodeMeta(limit int) []byte {
+	return delegate.router.SeedBytes()
 }
 
 // NotifyMsg is called when a user-data message is received.
 // Care should be taken that this method does not block, since doing
 // so would block the entire UDP packet receive loop. Additionally, the byte
 // slice may be modified after the call returns, so it should be copied if needed
-func (cluster *Cluster) NotifyMsg(msg []byte) {
+func (delegate *memberlistDelegate) NotifyMsg(msg []byte) {
 }
 
 // GetBroadcasts is called when user data messages can be broadcast.
@@ -99,7 +105,7 @@ func (cluster *Cluster) NotifyMsg(msg []byte) {
 // The total byte size of the resulting data to send must not exceed
 // the limit. Care should be taken that this method does not block,
 // since doing so would block the entire UDP packet receive loop.
-func (cluster *Cluster) GetBroadcasts(overhead, limit int) [][]byte {
+func (delegate *memberlistDelegate) GetBroadcasts(overhead, limit int) [][]byte {
 	var b [][]byte
 
 	return b
@@ -109,7 +115,7 @@ func (cluster *Cluster) GetBroadcasts(overhead, limit int) [][]byte {
 // the remote side in addition to the membership information. Any
 // data can be sent here. See MergeRemoteState as well. The `join`
 // boolean indicates this is for a join instead of a push/pull.
-func (cluster *Cluster) LocalState(join bool) []byte {
+func (delegate *memberlistDelegate) LocalState(join bool) []byte {
 	var b []byte
 
 	return b
@@ -119,8 +125,7 @@ func (cluster *Cluster) LocalState(join bool) []byte {
 // state received from the remote side and is the result of the
 // remote side's LocalState call. The 'join'
 // boolean indicates this is for a join instead of a push/pull.
-func (cluster *Cluster) MergeRemoteState(buf []byte, join bool) {
-
+func (delegate *memberlistDelegate) MergeRemoteState(buf []byte, join bool) {
 }
 
 func (cluster Cluster) LocalNode() Node {
@@ -147,6 +152,14 @@ func (cluster *Cluster) Join(member string) error {
 	_, err := cluster.memberList.Join([]string{member})
 
 	return err
+}
+
+func (cluster *Cluster) Shutdown() error {
+	if cluster.memberList == nil {
+		return nil
+	}
+
+	return cluster.memberList.Shutdown()
 }
 
 func NewCluster(logger *logrus.Logger, port int) *Cluster {

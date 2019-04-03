@@ -32,7 +32,7 @@ func (suite *serverTestSuite) TearDownSuite() {
 	suite.server.Stop()
 }
 
-func TestExampleTestSuite(t *testing.T) {
+func TestServerTestSuite(t *testing.T) {
 	suite.Run(t, new(serverTestSuite))
 }
 
