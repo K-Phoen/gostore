@@ -84,4 +84,29 @@ func commonStorageFeaturesAssertions(t *testing.T, store Store) {
 	require.Equal(t, 0, store.Len(), "Length should be updated after the element has expired")
 	require.Equal(t, "", val, "Getting an expired key should return an empty string")
 	require.Error(t, err, "Getting an expired key should return an error")
+
+	store.Set("some-known-key", "some-value-1")
+	store.Set("some-other-key", "some-value-2")
+	store.Set("yet-another-key", "some-value-3")
+
+	require.Equal(t, 3, store.Len(), "Length should be correct")
+
+	var allKeys []string
+	store.Keys(func (key string) bool {
+		allKeys = append(allKeys, key)
+
+		return true
+	})
+
+	require.Equal(t, 3, len(allKeys), "The right number of keys should have been fetched")
+	require.ElementsMatch(t, allKeys, []string{"some-known-key", "yet-another-key", "some-other-key"}, "All the keys should have been fetched")
+
+	var twoKeys []string
+	store.Keys(func (key string) bool {
+		twoKeys = append(twoKeys, key)
+
+		return len(twoKeys) < 2
+	})
+
+	require.Equal(t, 2, len(twoKeys), "Just two keys should have been fetched")
 }
