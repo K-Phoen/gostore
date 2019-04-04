@@ -2,7 +2,8 @@ package gostore
 
 import (
 	"bufio"
-	logging "github.com/sirupsen/logrus/hooks/test"
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"io/ioutil"
@@ -15,14 +16,16 @@ type serverTestSuite struct {
 	suite.Suite
 
 	server *Server
+	port int
 }
 
 func (suite *serverTestSuite) SetupSuite() {
 	config := DefaultConfig()
-	logger, _ := logging.NewNullLogger()
+	logger := logrus.New()
 	server := NewServer(logger, config)
 
 	suite.server = &server
+	suite.port = config.Port
 
 	go server.Start()
 }
@@ -36,12 +39,13 @@ func TestServerTestSuite(t *testing.T) {
 	suite.Run(t, new(serverTestSuite))
 }
 
-func sendRequest(require *require.Assertions, payload []byte) []byte {
-	conn, err := net.Dial("tcp", ":4224")
+func sendRequest(require *require.Assertions, port int, payload []byte) []byte {
+	conn, err := net.Dial("tcp", fmt.Sprintf(":%d", port))
 	require.NoError(err, "could not connect to test server")
 	defer conn.Close()
 
-	conn.SetDeadline(time.Now().Add(1*time.Second))
+	err = conn.SetDeadline(time.Now().Add(time.Second))
+	require.NoError(err, "could not set the deadline")
 
 	_, err = conn.Write(payload)
 	require.NoError(err, "could not send test payload")
@@ -52,7 +56,7 @@ func sendRequest(require *require.Assertions, payload []byte) []byte {
 	return response
 }
 
-func (suite *serverTestSuite) TestItHandlesRequests() {
+func (suite *serverTestSuite) itHandlesRequestsCorrectly(port int) {
 	tt := []struct {
 		test    string
 		payload []byte
@@ -99,24 +103,54 @@ func (suite *serverTestSuite) TestItHandlesRequests() {
 
 	for _, tc := range tt {
 		suite.Run(tc.test, func() {
-			response := sendRequest(test, tc.payload)
+			response := sendRequest(test, port, tc.payload)
 
 			test.Equal(tc.want, response)
 		})
 	}
 }
 
+func (suite *serverTestSuite) TestASingleNodeHandlesRequests() {
+	suite.itHandlesRequestsCorrectly(suite.port)
+}
+
 func (suite *serverTestSuite) TestItHandlesExpiringKeys() {
 	test := suite.Require()
 
-	response := sendRequest(test, []byte("storex expiring-key 1s some-value\n"))
+	response := sendRequest(test, suite.port, []byte("storex expiring-key 1s some-value\n"))
 	test.Equal([]byte("+0\n"), response)
 
-	response = sendRequest(test, []byte("fetch expiring-key\n"))
+	response = sendRequest(test, suite.port, []byte("fetch expiring-key\n"))
 	test.Equal([]byte("+10\nsome-value"), response)
 
 	time.Sleep(time.Second)
 
-	response = sendRequest(test, []byte("fetch expiring-key\n"))
+	response = sendRequest(test, suite.port, []byte("fetch expiring-key\n"))
 	test.Equal([]byte("+0\n"), response)
+}
+
+func (suite *serverTestSuite) TestWithATwoNodesCluster() {
+	config := DefaultConfig()
+	config.Port = 5225
+
+	logger := logrus.New()
+	secondNode := NewServer(logger, config)
+
+	go secondNode.Start()
+	defer secondNode.Stop()
+
+	secondNode.JoinCluster(fmt.Sprintf("127.0.0.1:%d", suite.port+1))
+
+	// it should behave the same from both nodes
+	suite.itHandlesRequestsCorrectly(suite.port)
+	suite.itHandlesRequestsCorrectly(config.Port)
+
+	test := suite.Require()
+
+	for i := 0; i < 10; i++ {
+		sendRequest(test, suite.port, []byte(fmt.Sprintf("store some-key-%d some-value\n", i)))
+	}
+
+	test.NotEqual(0, suite.server.store.Len(), "The first node should have at least some keys")
+	test.NotEqual(0, secondNode.store.Len(), "The second node should have at least some keys")
 }
