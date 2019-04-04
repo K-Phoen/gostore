@@ -231,6 +231,8 @@ func (server *Server) stabilizeKey(key string, remote Node) {
 }
 
 func (server *Server) Stop() {
+	server.logger.Info("Stopping server...")
+
 	server.stopped = true
 
 	err := server.cluster.Shutdown()
@@ -242,6 +244,8 @@ func (server *Server) Stop() {
 	if err != nil {
 		server.logger.Errorf("Error while stopping server: %s", err)
 	}
+
+	server.logger.Info("Server stopped!")
 }
 
 func NewServer(logger *log.Logger, config Config) Server {
