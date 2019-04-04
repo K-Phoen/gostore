@@ -100,11 +100,8 @@ func (m *syncMap) startEvictionRoutine() {
 	ticker := time.NewTicker(m.evictionInterval)
 
 	go func() {
-		for {
-			select {
-			case <- ticker.C:
-				m.evictExpired()
-			}
+		for range ticker.C {
+			m.evictExpired()
 		}
 	}()
 }
