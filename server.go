@@ -153,16 +153,13 @@ func (server *Server) startStabilizationRoutine() {
 	ticker := time.NewTicker(server.config.StabilizeInterval)
 
 	go func() {
-		for {
+		for range ticker.C {
 			if server.stopped {
 				ticker.Stop()
 				break
 			}
 
-			select {
-			case <- ticker.C:
-				server.stabilize()
-			}
+			server.stabilize()
 		}
 	}()
 }
