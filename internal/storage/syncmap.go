@@ -29,6 +29,7 @@ func (e entry) Expired() bool {
 		return false
 	}
 
+	// means that sub-second lifetimes will not work as expected
 	return uint64(time.Now().Unix()) >= e.expiration
 }
 
