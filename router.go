@@ -9,15 +9,15 @@ import (
 )
 
 type Router struct {
-	seed uint64
+	seed     uint64
 	seedsMap map[Node]uint64
 
 	mutex sync.RWMutex
 }
 
 func NewRouter() Router {
-	return Router {
-		seed: rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(),
+	return Router{
+		seed:     rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(),
 		seedsMap: make(map[Node]uint64),
 	}
 }
@@ -29,7 +29,7 @@ func (router Router) SeedBytes() []byte {
 	return b
 }
 
-func (router Router) AddNode(node Node, seed []byte) {
+func (router *Router) AddNode(node Node, seed []byte) {
 	// todo error checking
 	remoteSeed, _ := binary.Uvarint(seed)
 
@@ -38,13 +38,13 @@ func (router Router) AddNode(node Node, seed []byte) {
 	router.mutex.Unlock()
 }
 
-func (router Router) RemoveNode(node Node) {
+func (router *Router) RemoveNode(node Node) {
 	router.mutex.Lock()
 	delete(router.seedsMap, node)
 	router.mutex.Unlock()
 }
 
-func (router Router) ResponsibleNode(key string) Node {
+func (router *Router) ResponsibleNode(key string) Node {
 	router.mutex.RLock()
 	defer router.mutex.RUnlock()
 
