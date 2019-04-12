@@ -154,8 +154,8 @@ func NewStoreExpiringCmd(arguments string) (*StoreExpiringCmd, error) {
 	}
 
 	return &StoreExpiringCmd{
-		key:   key,
-		value: rest,
+		key:      key,
+		value:    rest,
 		lifetime: lifetime,
 	}, nil
 }

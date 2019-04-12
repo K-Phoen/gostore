@@ -27,9 +27,9 @@ type memberlistDelegate struct {
 }
 
 type Cluster struct {
-	logger *logrus.Logger
+	logger     *logrus.Logger
 	memberList *memberlist.Memberlist
-	router Router
+	router     Router
 }
 
 func (node NodeRef) Address() string {
@@ -68,13 +68,13 @@ func (cluster *Cluster) createMemberList(port int) {
 // NotifyJoin is invoked when a node is detected to have joined.
 // The Node argument must not be modified.
 func (delegate *memberlistDelegate) NotifyJoin(node *memberlist.Node) {
-	delegate.router.AddNode(NodeRef{host: node.Addr.String(), port: node.Port-1})
+	delegate.router.AddNode(NodeRef{host: node.Addr.String(), port: node.Port - 1})
 }
 
 // NotifyLeave is invoked when a node is detected to have left.
 // The Node argument must not be modified.
 func (delegate *memberlistDelegate) NotifyLeave(node *memberlist.Node) {
-	delegate.router.RemoveNode(NodeRef{host: node.Addr.String(), port: node.Port-1})
+	delegate.router.RemoveNode(NodeRef{host: node.Addr.String(), port: node.Port - 1})
 }
 
 // NotifyUpdate is invoked when a node is detected to have
@@ -87,14 +87,14 @@ func (delegate *memberlistDelegate) NotifyUpdate(node *memberlist.Node) {
 func (cluster Cluster) LocalNode() Node {
 	local := cluster.memberList.LocalNode()
 
-	return NodeRef{host: local.Addr.String(), port: local.Port-1}
+	return NodeRef{host: local.Addr.String(), port: local.Port - 1}
 }
 
 func (cluster Cluster) Members() []Node {
 	var nodes []Node
 
 	for _, member := range cluster.memberList.Members() {
-		nodes = append(nodes, NodeRef{host: member.Addr.String(), port: member.Port-1})
+		nodes = append(nodes, NodeRef{host: member.Addr.String(), port: member.Port - 1})
 	}
 
 	return nodes

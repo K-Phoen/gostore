@@ -17,7 +17,7 @@ type serverTestSuite struct {
 	suite.Suite
 
 	server *Server
-	port int
+	port   int
 }
 
 func (suite *serverTestSuite) SetupSuite() {
@@ -30,7 +30,6 @@ func (suite *serverTestSuite) SetupSuite() {
 
 	go server.Start()
 }
-
 
 func (suite *serverTestSuite) TearDownSuite() {
 	suite.server.Stop()

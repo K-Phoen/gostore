@@ -5,7 +5,7 @@ import (
 )
 
 type prefixedFormatter struct {
-	prefix string
+	prefix    string
 	formatter logrus.Formatter
 }
 
@@ -25,10 +25,9 @@ func newPrefixedLogger(logger *logrus.Logger, prefix string) *logrus.Logger {
 	newLogger.Out = logger.Out
 	newLogger.SetLevel(logger.Level)
 	newLogger.SetFormatter(prefixedFormatter{
-		prefix: prefix,
+		prefix:    prefix,
 		formatter: logger.Formatter,
 	})
 
 	return newLogger
 }
-

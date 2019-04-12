@@ -25,7 +25,7 @@ func TestRouterTestSuite(t *testing.T) {
 
 func (suite *routerTestSuite) TestItRoutesKeysBetweenNodes() {
 	tt := []struct {
-		key string
+		key             string
 		responsibleNode string
 	}{
 		{

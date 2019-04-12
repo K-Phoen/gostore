@@ -20,7 +20,6 @@ func (suite *clusterTestSuite) SetupSuite() {
 	suite.logger = logger
 }
 
-
 func (suite *clusterTestSuite) TearDownSuite() {
 }
 
@@ -35,12 +34,12 @@ func (suite *clusterTestSuite) TestASingleNodeClusterCanBeCreated() {
 	cluster := NewCluster(suite.logger, 4225)
 	defer cluster.Shutdown()
 
-	require.Len(cluster.Members(),1, "A new cluster has only one member")
+	require.Len(cluster.Members(), 1, "A new cluster has only one member")
 
 	localAddress := cluster.LocalNode().Address()
 	localPort := strings.Split(localAddress, ":")
 
-	require.Equal("4224", localPort[1],"It returns the service's port, not the management one")
+	require.Equal("4224", localPort[1], "It returns the service's port, not the management one")
 }
 
 func (suite *clusterTestSuite) TestAMultiNodesClusterCanBeCreated() {
@@ -51,12 +50,12 @@ func (suite *clusterTestSuite) TestAMultiNodesClusterCanBeCreated() {
 	defer clusterA.Shutdown()
 	defer clusterB.Shutdown()
 
-	require.Len(clusterA.Members(),1, "A new cluster has only one member")
-	require.Len(clusterB.Members(),1, "A new cluster has only one member")
+	require.Len(clusterA.Members(), 1, "A new cluster has only one member")
+	require.Len(clusterB.Members(), 1, "A new cluster has only one member")
 
 	err := clusterA.Join("127.0.0.1:5225")
 	require.NoError(err, "clusterA should be able to join clusterB")
 
-	require.Len(clusterA.Members(),2)
-	require.Len(clusterB.Members(),2)
+	require.Len(clusterA.Members(), 2)
+	require.Len(clusterB.Members(), 2)
 }

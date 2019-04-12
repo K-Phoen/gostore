@@ -17,7 +17,7 @@ type Config struct {
 
 	StoragePath string
 
-	ReadTimeout time.Duration
+	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 
 	StabilizeInterval time.Duration
@@ -32,12 +32,12 @@ type Config struct {
 type Server struct {
 	config Config
 
-	logger *log.Logger
-	store  storage.Store
+	logger  *log.Logger
+	store   storage.Store
 	cluster *Cluster
 
 	listener net.Listener
-	stopped bool
+	stopped  bool
 }
 
 func DefaultConfig() Config {
@@ -47,10 +47,10 @@ func DefaultConfig() Config {
 
 		StoragePath: "memory",
 
-		ReadTimeout: 5 * time.Second,
+		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,
 
-		StabilizeInterval: 5 * time.Minute,
+		StabilizeInterval:  5 * time.Minute,
 		StabilizeBatchSize: 5, // percent
 	}
 }
@@ -176,7 +176,7 @@ func (server *Server) stabilize() {
 	batchSize := int(float64(server.store.Len()) * float64(server.config.StabilizeBatchSize) / 100.0)
 	stabilizedKeys := 0
 
-	server.store.Keys(func (key string) bool {
+	server.store.Keys(func(key string) bool {
 		responsibleNode := server.cluster.ResponsibleNode(key)
 
 		if !localNode.SameAs(responsibleNode) {
@@ -200,13 +200,13 @@ func (server *Server) stabilizeKey(key string, remote Node) {
 	var storeCmd Command
 	if lifetime == 0 {
 		storeCmd = &StoreCmd{
-			key: key,
+			key:   key,
 			value: value,
 		}
 	} else {
 		storeCmd = &StoreExpiringCmd{
-			key: key,
-			value: value,
+			key:      key,
+			value:    value,
 			lifetime: time.Until(time.Unix(int64(lifetime), 0)),
 		}
 	}
@@ -218,7 +218,7 @@ func (server *Server) stabilizeKey(key string, remote Node) {
 	server.relayCommand(storeBuffer, storeCmd, remote)
 
 	result, err := storeBuffer.ReadByte()
-	if  err != nil || result != '+' {
+	if err != nil || result != '+' {
 		server.logger.Errorf("Could not stabilize key %q to node %q", key, remote)
 		return
 	}
@@ -262,9 +262,9 @@ func NewServer(logger *log.Logger, config Config) Server {
 	}
 
 	return Server{
-		logger: newPrefixedLogger(logger, "[gostore] "),
-		config: config,
-		store:  store,
+		logger:  newPrefixedLogger(logger, "[gostore] "),
+		config:  config,
+		store:   store,
 		cluster: NewCluster(newPrefixedLogger(logger, "[cluster] "), config.Port+1),
 	}
 }

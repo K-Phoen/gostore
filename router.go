@@ -60,5 +60,5 @@ func (router Router) mergeHash(serverHash, keyHash uint64) uint64 {
 	a := uint64(1103515245)
 	b := uint64(12345)
 
-	return 	(a * ((a * serverHash + b) ^ keyHash) + b) % (2^63)
+	return (a*((a*serverHash+b)^keyHash) + b) % (2 ^ 63)
 }
