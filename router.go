@@ -1,46 +1,31 @@
 package gostore
 
 import (
-	"encoding/binary"
 	"github.com/dgryski/go-farm"
-	"math/rand"
 	"sync"
-	"time"
 )
 
 type Router struct {
-	seed     uint64
-	seedsMap map[Node]uint64
+	nodes map[Node]uint64
 
 	mutex sync.RWMutex
 }
 
 func NewRouter() Router {
 	return Router{
-		seed:     rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(),
-		seedsMap: make(map[Node]uint64),
+		nodes: make(map[Node]uint64),
 	}
 }
 
-func (router Router) SeedBytes() []byte {
-	b := make([]byte, binary.MaxVarintLen64)
-	binary.PutUvarint(b, router.seed)
-
-	return b
-}
-
-func (router *Router) AddNode(node Node, seed []byte) {
-	// todo error checking
-	remoteSeed, _ := binary.Uvarint(seed)
-
+func (router *Router) AddNode(node Node) {
 	router.mutex.Lock()
-	router.seedsMap[node] = remoteSeed
+	router.nodes[node] = router.hash(node.Address())
 	router.mutex.Unlock()
 }
 
 func (router *Router) RemoveNode(node Node) {
 	router.mutex.Lock()
-	delete(router.seedsMap, node)
+	delete(router.nodes, node)
 	router.mutex.Unlock()
 }
 
@@ -51,8 +36,12 @@ func (router *Router) ResponsibleNode(key string) Node {
 	var candidate Node
 	maxScore := uint64(0)
 
-	for node, seed := range router.seedsMap {
-		score := router.hash(key, seed)
+	keyHash := router.hash(key)
+
+	// fixme: bug if two nodes have the save score (iterating over a map doesn't guarantee the order, so two servers
+	//  	  could choose different nodes)
+	for node, nodeHash := range router.nodes {
+		score := router.mergeHash(nodeHash, keyHash)
 
 		if score > maxScore {
 			maxScore = score
@@ -63,6 +52,13 @@ func (router *Router) ResponsibleNode(key string) Node {
 	return candidate
 }
 
-func (router Router) hash(key string, seed uint64) uint64 {
-	return farm.Hash64WithSeed([]byte(key), seed)
+func (router Router) hash(key string) uint64 {
+	return farm.Hash64([]byte(key))
+}
+
+func (router Router) mergeHash(serverHash, keyHash uint64) uint64 {
+	a := uint64(1103515245)
+	b := uint64(12345)
+
+	return 	(a * ((a * serverHash + b) ^ keyHash) + b) % (2^63)
 }

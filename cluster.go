@@ -55,7 +55,6 @@ func (cluster *Cluster) createMemberList(port int) {
 	config.BindPort = port
 	config.AdvertisePort = port
 	config.Logger = log.New(cluster.logger.Writer(), "", 0)
-	config.Delegate = delegate
 	config.Events = delegate
 
 	list, err := memberlist.Create(config)
@@ -69,7 +68,7 @@ func (cluster *Cluster) createMemberList(port int) {
 // NotifyJoin is invoked when a node is detected to have joined.
 // The Node argument must not be modified.
 func (delegate *memberlistDelegate) NotifyJoin(node *memberlist.Node) {
-	delegate.router.AddNode(NodeRef{host: node.Addr.String(), port: node.Port-1}, node.Meta)
+	delegate.router.AddNode(NodeRef{host: node.Addr.String(), port: node.Port-1})
 }
 
 // NotifyLeave is invoked when a node is detected to have left.
@@ -83,49 +82,6 @@ func (delegate *memberlistDelegate) NotifyLeave(node *memberlist.Node) {
 // must not be modified.
 func (delegate *memberlistDelegate) NotifyUpdate(node *memberlist.Node) {
 	// nothing to do
-}
-
-// NodeMeta is used to retrieve meta-data about the current node
-// when broadcasting an alive message. It's length is limited to
-// the given byte size. This metadata is available in the Node structure.
-func (delegate *memberlistDelegate) NodeMeta(limit int) []byte {
-	return delegate.router.SeedBytes()
-}
-
-// NotifyMsg is called when a user-data message is received.
-// Care should be taken that this method does not block, since doing
-// so would block the entire UDP packet receive loop. Additionally, the byte
-// slice may be modified after the call returns, so it should be copied if needed
-func (delegate *memberlistDelegate) NotifyMsg(msg []byte) {
-}
-
-// GetBroadcasts is called when user data messages can be broadcast.
-// It can return a list of buffers to send. Each buffer should assume an
-// overhead as provided with a limit on the total byte size allowed.
-// The total byte size of the resulting data to send must not exceed
-// the limit. Care should be taken that this method does not block,
-// since doing so would block the entire UDP packet receive loop.
-func (delegate *memberlistDelegate) GetBroadcasts(overhead, limit int) [][]byte {
-	var b [][]byte
-
-	return b
-}
-
-// LocalState is used for a TCP Push/Pull. This is sent to
-// the remote side in addition to the membership information. Any
-// data can be sent here. See MergeRemoteState as well. The `join`
-// boolean indicates this is for a join instead of a push/pull.
-func (delegate *memberlistDelegate) LocalState(join bool) []byte {
-	var b []byte
-
-	return b
-}
-
-// MergeRemoteState is invoked after a TCP Push/Pull. This is the
-// state received from the remote side and is the result of the
-// remote side's LocalState call. The 'join'
-// boolean indicates this is for a join instead of a push/pull.
-func (delegate *memberlistDelegate) MergeRemoteState(buf []byte, join bool) {
 }
 
 func (cluster Cluster) LocalNode() Node {

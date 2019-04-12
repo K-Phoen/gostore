@@ -1,7 +1,6 @@
 package gostore
 
 import (
-	"encoding/binary"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
@@ -12,30 +11,16 @@ type routerTestSuite struct {
 	router Router
 }
 
-func uintAsBytes(i uint64) []byte {
-	b := make([]byte, binary.MaxVarintLen64)
-	binary.PutUvarint(b, i)
-
-	return b
-}
-
 func (suite *routerTestSuite) SetupTest() {
 	suite.router = NewRouter()
-	suite.router.seed = 42
 
-	suite.router.AddNode(NodeRef{host: "192.168.1.20", port: 4242}, uintAsBytes(20))
-	suite.router.AddNode(NodeRef{host: "192.168.1.30", port: 4242}, uintAsBytes(30))
-	suite.router.AddNode(NodeRef{host: "192.168.1.40", port: 4242}, uintAsBytes(40))
+	suite.router.AddNode(NodeRef{host: "192.168.1.20", port: 4242})
+	suite.router.AddNode(NodeRef{host: "192.168.1.30", port: 4242})
+	suite.router.AddNode(NodeRef{host: "192.168.1.40", port: 4242})
 }
 
 func TestRouterTestSuite(t *testing.T) {
 	suite.Run(t, new(routerTestSuite))
-}
-
-func (suite *routerTestSuite) TestSeedCanBeConvertedToBytes() {
-	require := suite.Require()
-
-	require.Equal(uintAsBytes(42), suite.router.SeedBytes())
 }
 
 func (suite *routerTestSuite) TestItRoutesKeysBetweenNodes() {
@@ -45,18 +30,18 @@ func (suite *routerTestSuite) TestItRoutesKeysBetweenNodes() {
 	}{
 		{
 			"some-key",
-			"192.168.1.30:4242",
+			"192.168.1.20:4242",
 		},
 		{
 			"some-other-key",
-			"192.168.1.20:4242",
+			"192.168.1.30:4242",
 		},
 		{
 			"yet-another-key",
 			"192.168.1.30:4242",
 		},
 		{
-			"tired-of-this",
+			"last-key-promise",
 			"192.168.1.40:4242",
 		},
 	}
@@ -78,5 +63,5 @@ func (suite *routerTestSuite) TestItDoesNotUseRemovedNodes() {
 	// this key should be routed to 192.168.1.30:4242
 	node := suite.router.ResponsibleNode("some-key")
 
-	require.Equal("192.168.1.40:4242", node.Address())
+	require.Equal("192.168.1.20:4242", node.Address())
 }
